@@ -27,20 +27,21 @@ const Agents = () => {
     };
 
     try {
-      // Check if webhook URL is configured
-      if (!agent.webhookUrl) {
+      // Resolve webhook URL from agent or saved Settings
+      const saved = localStorage.getItem("asm-webhooks");
+      const mapping: Record<string, string> = saved ? JSON.parse(saved) : {};
+      const webhookUrl = agent.webhookUrl || mapping[agent.id];
+
+      if (!webhookUrl) {
         toast.error("Webhook URL not configured", {
           description: "Please configure the webhook URL in Settings",
         });
         throw new Error("No webhook URL");
       }
-
       // Make the webhook call
-      const response = await fetch(agent.webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 

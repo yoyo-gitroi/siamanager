@@ -1,4 +1,5 @@
 import { Eye, PlayCircle, Users, TrendingUp } from "lucide-react";
+import { useState } from "react";
 import StatCard from "@/components/StatCard";
 import DataTable from "@/components/DataTable";
 import { linkedInData, youtubeVideos } from "@/data/sampleData";
@@ -14,7 +15,9 @@ const Dashboard = () => {
   const totalSubscribers = youtubeVideos.reduce((sum, v) => sum + v.subscribers, 0);
 
   // Prepare chart data (combining LinkedIn and YouTube by date)
-  const chartData = linkedInData.slice(-10).map((item) => ({
+  const [range, setRange] = useState<"7d" | "30d" | "90d">("90d");
+  const sliceLen = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+  const chartData = linkedInData.slice(-sliceLen).map((item) => ({
     date: new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     linkedin: item.impressions,
     youtube: Math.floor(Math.random() * 100000) + 50000, // Sample data
@@ -110,9 +113,9 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">7d</Button>
-            <Button variant="outline" size="sm">30d</Button>
-            <Button size="sm">90d</Button>
+            <Button variant={range === "7d" ? "default" : "outline"} size="sm" onClick={() => setRange("7d")}>7d</Button>
+            <Button variant={range === "30d" ? "default" : "outline"} size="sm" onClick={() => setRange("30d")}>30d</Button>
+            <Button variant={range === "90d" ? "default" : "outline"} size="sm" onClick={() => setRange("90d")}>90d</Button>
           </div>
         </div>
 

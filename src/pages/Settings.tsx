@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { agents as initialAgents } from "@/data/sampleData";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ const Settings = () => {
   const [testingAgent, setTestingAgent] = useState<string | null>(null);
   const [userName, setUserName] = useState("John Doe");
   const [userEmail] = useState("john.doe@example.com");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("asm-webhooks");
+      if (saved) setWebhookUrls(JSON.parse(saved));
+    } catch {}
+  }, []);
 
   const handleWebhookChange = (agentId: string, url: string) => {
     setWebhookUrls((prev) => ({ ...prev, [agentId]: url }));
@@ -62,7 +69,14 @@ const Settings = () => {
       return;
     }
 
-    // In a real app, this would save to a backend
+    // Persist locally for now; will sync to Cloud later
+    try {
+      const saved = localStorage.getItem("asm-webhooks");
+      const mapping = saved ? JSON.parse(saved) : {};
+      mapping[agentId] = url;
+      localStorage.setItem("asm-webhooks", JSON.stringify(mapping));
+    } catch {}
+
     toast.success("Webhook saved", {
       description: "Configuration updated successfully",
     });

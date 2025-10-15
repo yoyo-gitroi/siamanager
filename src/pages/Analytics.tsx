@@ -23,23 +23,29 @@ const Analytics = () => {
   ];
 
   // Platform performance data
-  const platformData = [
+  const fullPlatformData = [
     { platform: "LinkedIn", impressions: totalImpressions / 1000000, engagement: totalEngagements / 1000 },
     { platform: "YouTube", impressions: youtubeVideos.reduce((sum, v) => sum + v.impressions, 0) / 1000000, engagement: youtubeVideos.reduce((sum, v) => sum + v.views, 0) / 1000 },
     { platform: "Instagram", impressions: 8.2, engagement: 320 },
     { platform: "Twitter", impressions: 5.4, engagement: 180 },
   ];
+  const platformData = activeTab === "all"
+    ? fullPlatformData
+    : fullPlatformData.filter((d) => d.platform.toLowerCase() === activeTab);
 
   // Top performing content
-  const topContent = youtubeVideos.slice(0, 10).map((video) => ({
-    platform: "YouTube",
-    title: video.title.substring(0, 50) + "...",
-    impressions: video.impressions.toLocaleString(),
-    engagements: video.views.toLocaleString(),
-    engagementRate: ((video.views / video.impressions) * 100).toFixed(2) + "%",
-    publishDate: new Date(video.publishDate).toLocaleDateString(),
-    url: video.url,
-  }));
+  const topContent =
+    activeTab === "linkedin"
+      ? []
+      : youtubeVideos.slice(0, 10).map((video) => ({
+          platform: "YouTube",
+          title: video.title.substring(0, 50) + "...",
+          impressions: video.impressions.toLocaleString(),
+          engagements: video.views.toLocaleString(),
+          engagementRate: ((video.views / video.impressions) * 100).toFixed(2) + "%",
+          publishDate: new Date(video.publishDate).toLocaleDateString(),
+          url: video.url,
+        }));
 
   const contentColumns = [
     { key: "platform", label: "Platform", sortable: true },
