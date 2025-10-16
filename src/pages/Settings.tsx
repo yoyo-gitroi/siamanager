@@ -1,44 +1,33 @@
-import { useState, useEffect } from "react";
-import { agents as initialAgents } from "@/data/sampleData";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useAgents } from "@/hooks/useAgents";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, Upload, FileText } from "lucide-react";
 
 const Settings = () => {
-  const [webhookUrls, setWebhookUrls] = useState<Record<string, string>>({});
+  const { user } = useAuth();
+  const { agents, updateAgent, loading } = useAgents();
   const [testingAgent, setTestingAgent] = useState<string | null>(null);
-  const [userName, setUserName] = useState("John Doe");
-  const [userEmail] = useState("john.doe@example.com");
+  const [editingAgent, setEditingAgent] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState("");
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("asm-webhooks");
-      if (saved) setWebhookUrls(JSON.parse(saved));
-    } catch {}
-  }, []);
-
-  const handleWebhookChange = (agentId: string, url: string) => {
-    setWebhookUrls((prev) => ({ ...prev, [agentId]: url }));
-  };
-
-  const handleTestConnection = async (agentId: string) => {
-    const url = webhookUrls[agentId];
-    
-    if (!url) {
+  const handleTestConnection = async (agent: any) => {
+    if (!agent.webhook_url) {
       toast.error("No webhook URL configured");
       return;
     }
 
-    setTestingAgent(agentId);
+    setTestingAgent(agent.id);
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch(agent.webhook_url, {
+        method: agent.webhook_method || "POST",
+        headers: { "Content-Type": "application/json", ...agent.webhook_headers },
         body: JSON.stringify({
           test: true,
           timestamp: new Date().toISOString(),
@@ -46,184 +35,191 @@ const Settings = () => {
       });
 
       if (response.ok) {
-        toast.success("Connection successful", {
-          description: "Webhook is configured correctly",
-        });
+        toast.success("Connection successful");
       } else {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
-      toast.error("Connection failed", {
-        description: error instanceof Error ? error.message : "Could not reach webhook",
-      });
+      toast.error("Connection failed");
     } finally {
       setTestingAgent(null);
     }
   };
 
-  const handleSaveWebhook = (agentId: string) => {
-    const url = webhookUrls[agentId];
-    
-    if (!url) {
+  const handleSaveWebhook = async (agentId: string) => {
+    if (!webhookUrl) {
       toast.error("Please enter a webhook URL");
       return;
     }
 
-    // Persist locally for now; will sync to Cloud later
-    try {
-      const saved = localStorage.getItem("asm-webhooks");
-      const mapping = saved ? JSON.parse(saved) : {};
-      mapping[agentId] = url;
-      localStorage.setItem("asm-webhooks", JSON.stringify(mapping));
-    } catch {}
-
-    toast.success("Webhook saved", {
-      description: "Configuration updated successfully",
-    });
+    await updateAgent(agentId, { webhook_url: webhookUrl });
+    setEditingAgent(null);
+    setWebhookUrl("");
   };
 
-  const handleSaveProfile = () => {
-    toast.success("Profile updated", {
-      description: "Your account settings have been saved",
-    });
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-4xl">
+    <div className="space-y-8 animate-fade-in max-w-7xl">
       <div>
         <h1 className="mb-2">Settings</h1>
         <p className="text-muted-foreground">
-          Configure agent webhooks and manage your account settings
+          Configure agents, import data, and view system logs
         </p>
       </div>
 
-      {/* Agent Webhook Configuration */}
-      <div className="space-y-6">
-        <div>
-          <h2 className="mb-4">Agent Webhook Configuration</h2>
-          <p className="text-sm text-muted-foreground mb-6">
-            Configure n8n webhook URLs for each agent. These endpoints will receive agent execution requests.
-          </p>
-        </div>
+      <Tabs defaultValue="agents" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
+          <TabsTrigger value="data-import">Data Import</TabsTrigger>
+          <TabsTrigger value="runs">Runs & Logs</TabsTrigger>
+        </TabsList>
 
-        {initialAgents.map((agent) => (
-          <Card key={agent.id} className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-${agent.color}/10 text-${agent.color}`}>
-                  <span className="font-medium">{agent.name}</span>
-                </div>
+        <TabsContent value="agents" className="space-y-6">
+          <Card className="p-8 border-none shadow-sm">
+            <div className="mb-6">
+              <h2 className="mb-2">Agent Configuration</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure webhook URLs and settings for each agent
+              </p>
+            </div>
+
+            {agents.length > 0 ? (
+              <div className="space-y-4">
+                {agents.map((agent) => (
+                  <Card key={agent.id} className="p-6 border">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{agent.name}</p>
+                          <p className="text-sm text-muted-foreground">{agent.pillar}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingAgent(agent.id);
+                            setWebhookUrl(agent.webhook_url || "");
+                          }}
+                        >
+                          Configure
+                        </Button>
+                      </div>
+
+                      {editingAgent === agent.id && (
+                        <div className="space-y-3 pt-3 border-t">
+                          <div className="space-y-2">
+                            <Label>Webhook URL</Label>
+                            <Input
+                              type="url"
+                              placeholder="https://your-n8n-instance.com/webhook/..."
+                              value={webhookUrl}
+                              onChange={(e) => setWebhookUrl(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleTestConnection(agent)}
+                              disabled={testingAgent === agent.id || !webhookUrl}
+                            >
+                              {testingAgent === agent.id ? (
+                                <>
+                                  <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  Testing...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="mr-2 h-3 w-3" />
+                                  Test
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveWebhook(agent.id)}
+                              disabled={!webhookUrl}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingAgent(null);
+                                setWebhookUrl("");
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`webhook-${agent.id}`}>Webhook URL</Label>
-                <Input
-                  id={`webhook-${agent.id}`}
-                  type="url"
-                  placeholder="https://your-n8n-instance.com/webhook/..."
-                  value={webhookUrls[agent.id] || ""}
-                  onChange={(e) => handleWebhookChange(agent.id, e.target.value)}
-                />
+            ) : (
+              <div className="flex items-center justify-center py-16 text-center">
+                <p className="text-muted-foreground">
+                  Agent configuration interface will be displayed here
+                </p>
               </div>
+            )}
+          </Card>
+        </TabsContent>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestConnection(agent.id)}
-                  disabled={testingAgent === agent.id || !webhookUrls[agent.id]}
-                >
-                  {testingAgent === agent.id ? (
-                    <>
-                      <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-2 h-3 w-3" />
-                      Test Connection
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => handleSaveWebhook(agent.id)}
-                  disabled={!webhookUrls[agent.id]}
-                >
-                  Save
+        <TabsContent value="data-import" className="space-y-6">
+          <Card className="p-8 border-none shadow-sm">
+            <div className="mb-6">
+              <h2 className="mb-2">Data Import</h2>
+              <p className="text-sm text-muted-foreground">
+                Import YouTube and LinkedIn analytics data
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center py-16 text-center">
+              <div className="space-y-4">
+                <Upload className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                <p className="text-muted-foreground">
+                  Upload your CSV or XLSX files to import analytics data
+                </p>
+                <Button variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Choose Files
                 </Button>
               </div>
             </div>
           </Card>
-        ))}
-      </div>
+        </TabsContent>
 
-      <Separator />
-
-      {/* Account Settings */}
-      <div className="space-y-6">
-        <h2>Account Settings</h2>
-
-        <Card className="p-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={userEmail} disabled />
-            <p className="text-xs text-muted-foreground">
-              Contact support to change your email address
-            </p>
-          </div>
-
-          <Button onClick={handleSaveProfile}>Save Changes</Button>
-        </Card>
-      </div>
-
-      <Separator />
-
-      {/* Data Management */}
-      <div className="space-y-6">
-        <h2>Data Management</h2>
-
-        <Card className="p-6 space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium">Export Your Data</p>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Download all your imported analytics data as CSV files
-                </p>
-                <Button variant="outline" size="sm">
-                  Export Data
-                </Button>
-              </div>
+        <TabsContent value="runs" className="space-y-6">
+          <Card className="p-8 border-none shadow-sm">
+            <div className="mb-6">
+              <h2 className="mb-2">Runs & Logs</h2>
+              <p className="text-sm text-muted-foreground">
+                View agent execution history and logs
+              </p>
             </div>
 
-            <Separator />
-
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-danger mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium">Clear All Data</p>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Permanently delete all imported analytics data. This action cannot be undone.
+            <div className="flex items-center justify-center py-16 text-center">
+              <div className="space-y-4">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                <p className="text-muted-foreground">
+                  Agent run history will be displayed here
                 </p>
-                <Button variant="destructive" size="sm">
-                  Clear All Data
-                </Button>
               </div>
             </div>
-          </div>
-        </Card>
-      </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

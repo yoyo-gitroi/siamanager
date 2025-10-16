@@ -179,17 +179,18 @@ const UnifiedAnalytics = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="mb-2">Analytics Dashboard</h1>
+        <h1 className="mb-2">Analytics</h1>
         <p className="text-muted-foreground">
-          Comprehensive insights across YouTube and LinkedIn performance
+          Deep dive into your YouTube and LinkedIn performance
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="youtube">YouTube</TabsTrigger>
-          <TabsTrigger value="linkedin">LinkedIn</TabsTrigger>
+          <TabsTrigger value="youtube">YouTube Deep Dive</TabsTrigger>
+          <TabsTrigger value="linkedin">LinkedIn Deep Dive</TabsTrigger>
+          <TabsTrigger value="correlation">Correlation Story</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8 mt-6">
@@ -401,6 +402,17 @@ const UnifiedAnalytics = () => {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="correlation" className="space-y-6 mt-6">
+          <div className="stat-card">
+            <h2 className="mb-4">Cross-Platform Correlation</h2>
+            <div className="flex items-center justify-center py-16 text-center">
+              <p className="text-muted-foreground">
+                Correlation analysis will be displayed here once sufficient data is available
+              </p>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

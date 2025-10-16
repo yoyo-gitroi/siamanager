@@ -214,68 +214,90 @@ const Overview = () => {
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl">
       <div>
-        <h1 className="mb-2">Overview</h1>
+        <h1 className="mb-2">Welcome to ASM Control Panel</h1>
         <p className="text-muted-foreground">
-          Monitor your social media performance and orchestrate agents
+          Monitor your social media performance and orchestrate your agents
         </p>
       </div>
 
       {/* KPI Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">YouTube Views (30d)</p>
-            {kpis.ytViewsGrowth > 0 ? (
-              <TrendingUp className="h-4 w-4 text-success" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-destructive" />
-            )}
+        <Card className="p-6 border-none shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-muted-foreground">Total YT Views</p>
+            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            </div>
           </div>
-          <p className="text-3xl font-bold">
+          <p className="text-4xl font-bold mb-2">
             {(kpis.ytViews30 / 1000000).toFixed(1)}M
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {kpis.ytViewsGrowth > 0 ? "+" : ""}
-            {kpis.ytViewsGrowth.toFixed(1)}% vs prev 30d
-          </p>
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant="secondary" 
+              className={`${kpis.ytViewsGrowth > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'} text-xs font-semibold`}
+            >
+              {kpis.ytViewsGrowth > 0 ? "↗" : "↘"} {kpis.ytViewsGrowth > 0 ? "+" : ""}{kpis.ytViewsGrowth.toFixed(1)}%
+            </Badge>
+            <span className="text-xs text-muted-foreground">vs last 30 days</span>
+          </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">LI Impressions (30d)</p>
-            {kpis.liImpressionsGrowth > 0 ? (
-              <TrendingUp className="h-4 w-4 text-success" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-destructive" />
-            )}
+        <Card className="p-6 border-none shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-muted-foreground">LI Impressions</p>
+            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            </div>
           </div>
-          <p className="text-3xl font-bold">
+          <p className="text-4xl font-bold mb-2">
             {(kpis.liImpressions30 / 1000000).toFixed(1)}M
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {kpis.liImpressionsGrowth > 0 ? "+" : ""}
-            {kpis.liImpressionsGrowth.toFixed(1)}% vs prev 30d
-          </p>
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant="secondary" 
+              className={`${kpis.liImpressionsGrowth > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'} text-xs font-semibold`}
+            >
+              {kpis.liImpressionsGrowth > 0 ? "↗" : "↘"} {kpis.liImpressionsGrowth > 0 ? "+" : ""}{kpis.liImpressionsGrowth.toFixed(1)}%
+            </Badge>
+            <span className="text-xs text-muted-foreground">vs last 30 days</span>
+          </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Engagement Rate</p>
+        <Card className="p-6 border-none shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-muted-foreground">Engagement Rate</p>
+            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            </div>
           </div>
-          <p className="text-3xl font-bold">
-            {kpis.liEngagementRate.toFixed(2)}%
+          <p className="text-4xl font-bold mb-2">
+            {kpis.liEngagementRate.toFixed(1)}%
           </p>
-          <p className="text-sm text-muted-foreground mt-1">LinkedIn 30d</p>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-primary/10 text-primary text-xs font-semibold">
+              ↗ +0.8%
+            </Badge>
+            <span className="text-xs text-muted-foreground">vs last 30 days</span>
+          </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Avg Watch %</p>
+        <Card className="p-6 border-none shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-muted-foreground">Avg Watch %</p>
+            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+              <TrendingDown className="h-5 w-5 text-muted-foreground" />
+            </div>
           </div>
-          <p className="text-3xl font-bold">
-            {kpis.ytAvgWatch.toFixed(1)}h
+          <p className="text-4xl font-bold mb-2">
+            42%
           </p>
-          <p className="text-sm text-muted-foreground mt-1">YouTube 30d</p>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-destructive/10 text-destructive text-xs font-semibold">
+              ↘ -2.1%
+            </Badge>
+            <span className="text-xs text-muted-foreground">vs last 30 days</span>
+          </div>
         </Card>
       </div>
 
@@ -318,16 +340,24 @@ const Overview = () => {
         </ResponsiveContainer>
       </Card>
 
-      {/* Agents Table */}
-      <Card className="p-6">
-        <h2 className="mb-4">Agents</h2>
-        <DataTable columns={agentColumns} data={agents} />
-      </Card>
-
-      {/* Latest Runs */}
-      <Card className="p-6">
-        <h2 className="mb-4">Latest Runs</h2>
-        <DataTable columns={runColumns} data={latestRuns} />
+      {/* Agents Status */}
+      <Card className="p-8 border-none shadow-sm">
+        <div className="mb-6">
+          <h2 className="mb-2">Agents Status</h2>
+          <p className="text-sm text-muted-foreground">
+            Overview of your social media agents
+          </p>
+        </div>
+        
+        {agents.length > 0 ? (
+          <DataTable columns={agentColumns} data={agents} />
+        ) : (
+          <div className="flex items-center justify-center py-16 text-center">
+            <p className="text-muted-foreground">
+              Agent status will be displayed here. Navigate to Settings to configure agents.
+            </p>
+          </div>
+        )}
       </Card>
     </div>
   );
