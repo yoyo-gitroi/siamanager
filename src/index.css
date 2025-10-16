@@ -8,112 +8,100 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 248 100% 98%;
-    --foreground: 222 47% 11%;
-
+    /* Apple-inspired calm palette */
+    --background: 0 0% 100%;
+    --foreground: 220 15% 20%;
+    
+    /* Soft card backgrounds */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-
+    --card-foreground: 220 15% 20%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-
+    --popover-foreground: 220 15% 20%;
+    
+    /* Modern blue accent */
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 262 83% 58%;
-    --secondary-foreground: 0 0% 100%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --danger: 0 84% 60%;
-    --danger-foreground: 0 0% 100%;
-
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-
-    --accent: 262 83% 58%;
-    --accent-foreground: 0 0% 100%;
-
+    
+    /* Soft gray secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 25%;
+    
+    /* Muted backgrounds */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    
+    /* Subtle accent */
+    --accent: 220 14% 96%;
+    --accent-foreground: 217 91% 60%;
+    
+    /* Destructive red */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
+    
+    /* Borders and inputs */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 217 91% 60%;
-
+    
     --radius: 1rem;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217 91% 60%;
-
+    
+    /* Status colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+    
     /* Platform colors */
     --linkedin: 201 100% 35%;
     --youtube: 0 100% 50%;
-
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 20px 25px rgba(0, 0, 0, 0.15);
-
-    /* Transitions */
-    --transition: all 200ms ease;
+    
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 20%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 217 91% 60%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
+    
+    /* Shadows - soft and subtle */
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+    --shadow-md: 0 4px 8px 0 rgba(0, 0, 0, 0.04), 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+    --shadow-lg: 0 10px 20px 0 rgba(0, 0, 0, 0.06), 0 4px 8px 0 rgba(0, 0, 0, 0.03);
+    --shadow-xl: 0 20px 40px 0 rgba(0, 0, 0, 0.08), 0 8px 16px 0 rgba(0, 0, 0, 0.04);
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 98%;
-
+    --background: 220 15% 8%;
+    --foreground: 220 14% 96%;
+    --card: 220 15% 10%;
+    --card-foreground: 220 14% 96%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 220 14% 96%;
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 262 83% 58%;
-    --secondary-foreground: 0 0% 100%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --danger: 0 84% 60%;
-    --danger-foreground: 0 0% 100%;
-
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 262 83% 58%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 220 14% 96%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 220 9% 60%;
+    --accent: 220 15% 15%;
+    --accent-foreground: 217 91% 60%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
     --ring: 217 91% 60%;
-
-    --sidebar-background: 217 33% 17%;
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 220 15% 10%;
+    --sidebar-foreground: 220 14% 96%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 16%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 240 4% 16%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 217 91% 60%;
+    --sidebar-border: 220 15% 18%;
     --sidebar-ring: 217 91% 60%;
   }
 }
@@ -125,6 +113,9 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1 {
@@ -136,24 +127,24 @@ All colors MUST be HSL.
   }
 
   h3 {
-    @apply text-lg font-semibold;
+    @apply text-xl font-semibold;
   }
 }
 
 @layer components {
   .stat-card {
-    @apply rounded-2xl bg-card p-6 shadow-sm transition-all duration-200 hover:shadow-md;
+    @apply bg-card p-8 rounded-2xl shadow-md border border-border hover:shadow-lg transition-all duration-300;
   }
 
   .agent-card {
-    @apply rounded-2xl bg-card p-6 shadow-sm transition-all duration-200 hover:shadow-md border border-border;
+    @apply bg-card p-6 rounded-2xl shadow-md border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5;
   }
 
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:opacity-90 transition-all duration-200;
+    @apply bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow;
   }
 
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:opacity-90 transition-all duration-200;
+    @apply bg-secondary text-secondary-foreground px-6 py-3 rounded-xl font-medium hover:bg-secondary/80 transition-all duration-200;
   }
 }

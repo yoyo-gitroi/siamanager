@@ -9,6 +9,7 @@ import Analytics from "./pages/Analytics";
 import Agents from "./pages/Agents";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="analytics" element={<Analytics />} />
@@ -27,7 +29,6 @@ const App = () => (
             <Route path="import" element={<Import />} />
             <Route path="settings" element={<Settings />} />
           </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
