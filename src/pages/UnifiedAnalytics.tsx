@@ -3,6 +3,7 @@ import { useExcelData } from "@/hooks/useExcelData";
 import StatCard from "@/components/StatCard";
 import DataTable from "@/components/DataTable";
 import AIChat from "@/components/AIChat";
+import { AIInsights } from "@/components/AIInsights";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, Clock, Users, TrendingUp, AlertCircle, Target, PlayCircle, BarChart3 } from "lucide-react";
@@ -131,8 +132,13 @@ const UnifiedAnalytics = () => {
   // LinkedIn daily chart
   const linkedInChartData = useMemo(() => {
     const daysBack = period === "7d" ? 7 : 30;
-    return linkedInData.slice(-daysBack).map(d => ({
-      date: new Date(d.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+    const sortedData = linkedInData
+      .map(d => ({ ...d, sortDate: new Date(d.date) }))
+      .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime())
+      .slice(-daysBack);
+    
+    return sortedData.map(d => ({
+      date: d.sortDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
       impressions: d.impressions,
       engagements: d.engagement,
       er: d.impressions > 0 ? (d.engagement / d.impressions) * 100 : 0,
@@ -395,14 +401,7 @@ const UnifiedAnalytics = () => {
         </TabsContent>
         
         <TabsContent value="correlation" className="space-y-6 mt-6">
-          <div className="stat-card">
-            <h2 className="mb-4">Cross-Platform Correlation</h2>
-            <div className="flex items-center justify-center py-16 text-center">
-              <p className="text-muted-foreground">
-                Correlation analysis will be displayed here once sufficient data is available
-              </p>
-            </div>
-          </div>
+          <AIInsights youtubeData={youtubeData} linkedInData={linkedInData} />
         </TabsContent>
       </Tabs>
     </div>

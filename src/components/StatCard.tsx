@@ -18,22 +18,24 @@ const StatCard = ({ label, value, growth, icon: Icon, iconColor }: StatCardProps
     secondary: "bg-secondary/10 text-secondary",
   };
 
+  const roundedGrowth = growth !== undefined ? Math.round(growth * 10) / 10 : undefined;
+
   return (
     <div className="stat-card">
       <div className="flex items-start justify-between mb-4">
         <div className={cn("p-3 rounded-xl", colorClasses[iconColor])}>
           <Icon className="h-6 w-6" />
         </div>
-        {growth !== undefined && (
+        {roundedGrowth !== undefined && (
           <span
             className={cn(
               "text-sm font-medium px-2 py-1 rounded-full",
-              growth >= 0
+              roundedGrowth >= 0
                 ? "bg-success/10 text-success"
                 : "bg-danger/10 text-danger"
             )}
           >
-            {growth >= 0 ? "+" : ""}{growth}%
+            {roundedGrowth >= 0 ? "+" : ""}{roundedGrowth}%
           </span>
         )}
       </div>

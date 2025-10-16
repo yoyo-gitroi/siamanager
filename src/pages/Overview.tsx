@@ -70,27 +70,38 @@ const Overview = () => {
     const now = new Date();
     const days30Ago = subDays(now, 30);
     
-    const dateMap = new Map<string, { youtube: number; linkedin: number }>();
+    const dateMap = new Map<string, { youtube: number; linkedin: number; sortDate: Date }>();
     
     youtubeData.forEach((video) => {
       if (video.publish_date && isAfter(new Date(video.publish_date), days30Ago)) {
-        const date = format(new Date(video.publish_date), "MMM dd");
-        const existing = dateMap.get(date) || { youtube: 0, linkedin: 0 };
-        dateMap.set(date, { ...existing, youtube: existing.youtube + video.views });
+        const videoDate = new Date(video.publish_date);
+        const date = format(videoDate, "MMM dd");
+        const existing = dateMap.get(date) || { youtube: 0, linkedin: 0, sortDate: videoDate };
+        dateMap.set(date, { 
+          youtube: existing.youtube + video.views,
+          linkedin: existing.linkedin,
+          sortDate: existing.sortDate
+        });
       }
     });
 
     linkedInData.forEach((day) => {
       if (isAfter(new Date(day.date), days30Ago)) {
-        const date = format(new Date(day.date), "MMM dd");
-        const existing = dateMap.get(date) || { youtube: 0, linkedin: 0 };
-        dateMap.set(date, { ...existing, linkedin: existing.linkedin + day.impressions });
+        const dayDate = new Date(day.date);
+        const date = format(dayDate, "MMM dd");
+        const existing = dateMap.get(date) || { youtube: 0, linkedin: 0, sortDate: dayDate };
+        dateMap.set(date, { 
+          youtube: existing.youtube,
+          linkedin: existing.linkedin + day.impressions,
+          sortDate: existing.sortDate
+        });
       }
     });
 
     return Array.from(dateMap.entries())
-      .map(([date, values]) => ({ date, ...values }))
-      .slice(-30);
+      .map(([date, values]) => ({ date, youtube: values.youtube, linkedin: values.linkedin, sortDate: values.sortDate }))
+      .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime())
+      .map(({ date, youtube, linkedin }) => ({ date, youtube, linkedin }));
   }, [youtubeData, linkedInData]);
 
   // Agents table columns
@@ -237,7 +248,7 @@ const Overview = () => {
               variant="secondary" 
               className={`${kpis.ytViewsGrowth > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'} text-xs font-semibold`}
             >
-              {kpis.ytViewsGrowth > 0 ? "↗" : "↘"} {kpis.ytViewsGrowth > 0 ? "+" : ""}{kpis.ytViewsGrowth.toFixed(1)}%
+              {kpis.ytViewsGrowth > 0 ? "↗" : "↘"} {kpis.ytViewsGrowth > 0 ? "+" : ""}{Math.round(kpis.ytViewsGrowth)}%
             </Badge>
             <span className="text-xs text-muted-foreground">vs last 30 days</span>
           </div>
@@ -258,7 +269,7 @@ const Overview = () => {
               variant="secondary" 
               className={`${kpis.liImpressionsGrowth > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'} text-xs font-semibold`}
             >
-              {kpis.liImpressionsGrowth > 0 ? "↗" : "↘"} {kpis.liImpressionsGrowth > 0 ? "+" : ""}{kpis.liImpressionsGrowth.toFixed(1)}%
+              {kpis.liImpressionsGrowth > 0 ? "↗" : "↘"} {kpis.liImpressionsGrowth > 0 ? "+" : ""}{Math.round(kpis.liImpressionsGrowth)}%
             </Badge>
             <span className="text-xs text-muted-foreground">vs last 30 days</span>
           </div>
