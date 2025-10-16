@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_runs: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          latency_ms: number | null
+          request_body: Json | null
+          response_code: number | null
+          started_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          latency_ms?: number | null
+          request_body?: Json | null
+          response_code?: number | null
+          started_at?: string | null
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          latency_ms?: number | null
+          request_body?: Json | null
+          response_code?: number | null
+          started_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_webhooks: {
         Row: {
           agent_id: string
@@ -38,6 +88,102 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           webhook_url?: string
+        }
+        Relationships: []
+      }
+      agents: {
+        Row: {
+          avg_latency_ms: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          last_run_at: string | null
+          name: string
+          payload_template: Json | null
+          pillar: string
+          status: string | null
+          success_rate: number | null
+          updated_at: string | null
+          webhook_headers: Json | null
+          webhook_method: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          avg_latency_ms?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_run_at?: string | null
+          name: string
+          payload_template?: Json | null
+          pillar: string
+          status?: string | null
+          success_rate?: number | null
+          updated_at?: string | null
+          webhook_headers?: Json | null
+          webhook_method?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          avg_latency_ms?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          payload_template?: Json | null
+          pillar?: string
+          status?: string | null
+          success_rate?: number | null
+          updated_at?: string | null
+          webhook_headers?: Json | null
+          webhook_method?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      content_queue: {
+        Row: {
+          caption: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          media_url: string | null
+          platforms: string[]
+          published_at: string | null
+          schedule_at: string
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          platforms: string[]
+          published_at?: string | null
+          schedule_at: string
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          platforms?: string[]
+          published_at?: string | null
+          schedule_at?: string
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }

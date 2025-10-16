@@ -9,10 +9,8 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { icon: Home, label: "Dashboard", path: "/" },
+  { icon: Home, label: "Overview", path: "/" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: Bot, label: "Agents", path: "/agents" },
-  { icon: Upload, label: "Import Data", path: "/import" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
