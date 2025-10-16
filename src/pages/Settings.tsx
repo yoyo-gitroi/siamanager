@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle, Upload, FileText } from "lucide-react";
+import { CheckCircle, Upload, FileText, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ const Settings = () => {
   const [testingAgent, setTestingAgent] = useState<string | null>(null);
   const [editingAgent, setEditingAgent] = useState<string | null>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [prefillLoading, setPrefillLoading] = useState<string | null>(null);
 
   const handleTestConnection = async (agent: any) => {
     if (!agent.webhook_url) {
@@ -52,7 +54,40 @@ const Settings = () => {
       return;
     }
 
-    await updateAgent(agentId, { webhook_url: webhookUrl });
+    // Save per-user webhook override in agent_webhooks
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes.user?.id;
+    if (!uid) {
+      toast.error("Not authenticated");
+      return;
+    }
+
+    // Try update existing; if none, insert
+    const { data: updated, error: updErr } = await supabase
+      .from("agent_webhooks")
+      .update({ webhook_url: webhookUrl })
+      .eq("user_id", uid)
+      .eq("agent_id", agentId)
+      .select();
+
+    if (updErr) {
+      toast.error("Failed to save webhook");
+      return;
+    }
+
+    if (!updated || updated.length === 0) {
+      const { error: insErr } = await supabase.from("agent_webhooks").insert({
+        user_id: uid,
+        agent_id: agentId,
+        webhook_url: webhookUrl,
+      });
+      if (insErr) {
+        toast.error("Failed to save webhook");
+        return;
+      }
+    }
+
+    toast.success("Webhook saved");
     setEditingAgent(null);
     setWebhookUrl("");
   };
@@ -103,12 +138,25 @@ const Settings = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
+                          onClick={async () => {
                             setEditingAgent(agent.id);
-                            setWebhookUrl(agent.webhook_url || "");
+                            setWebhookUrl("");
+                            setPrefillLoading(agent.id);
+                            const { data: userRes } = await supabase.auth.getUser();
+                            const uid = userRes.user?.id;
+                            if (uid) {
+                              const { data: existing } = await supabase
+                                .from("agent_webhooks")
+                                .select("webhook_url")
+                                .eq("user_id", uid)
+                                .eq("agent_id", agent.id)
+                                .maybeSingle();
+                              if (existing?.webhook_url) setWebhookUrl(existing.webhook_url);
+                            }
+                            setPrefillLoading(null);
                           }}
                         >
-                          Configure
+                          {prefillLoading === agent.id ? "Loading..." : "Configure"}
                         </Button>
                       </div>
 

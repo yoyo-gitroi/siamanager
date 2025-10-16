@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Play, Pause, Settings as SettingsIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { format, subDays, isAfter, isBefore } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 const Overview = () => {
   const { user } = useAuth();
@@ -161,7 +162,7 @@ const Overview = () => {
             size="sm"
             variant="outline"
             onClick={() => runAgent(row.id)}
-            disabled={row.status === "running" || !row.webhook_url}
+            disabled={row.status === "running"}
           >
             <Play className="h-3 w-3 mr-1" />
             Run
@@ -314,7 +315,12 @@ const Overview = () => {
 
       {/* 30-Day Growth Chart */}
       <Card className="p-6">
-        <h2 className="mb-4">30-Day Platform Trends</h2>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="mb-1">30-Day Platform Trends</h2>
+          </div>
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

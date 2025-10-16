@@ -89,10 +89,24 @@ export const useAgents = () => {
     }
 
     const agent = latestAgent as Agent;
-    
-    if (!agent.webhook_url) {
-      toast.error("Agent not configured", {
-        description: "Please configure the webhook URL in Settings first",
+
+    // Resolve user-specific webhook override
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes.user?.id || null;
+    let resolvedWebhook: string | null = agent.webhook_url;
+    if (uid) {
+      const { data: override } = await supabase
+        .from("agent_webhooks")
+        .select("webhook_url")
+        .eq("user_id", uid)
+        .eq("agent_id", agentId)
+        .maybeSingle();
+      if (override?.webhook_url) resolvedWebhook = override.webhook_url;
+    }
+
+    if (!resolvedWebhook) {
+      toast.error("No webhook URL configured", {
+        description: "Add a webhook in Settings → Agents for this agent",
       });
       return;
     }
@@ -122,7 +136,7 @@ export const useAgents = () => {
       .eq("id", agentId);
 
     try {
-      const response = await fetch(agent.webhook_url, {
+      const response = await fetch(resolvedWebhook, {
         method: agent.webhook_method,
         headers: {
           "Content-Type": "application/json",

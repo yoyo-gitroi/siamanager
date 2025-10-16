@@ -2,3 +2,6 @@ project_id = "pfrdaarzcxxlxlhlfhoh"
 
 [functions.generate-insights]
 verify_jwt = false
+
+[functions.chat]
+verify_jwt = false
