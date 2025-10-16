@@ -2,6 +2,7 @@ import { Eye, PlayCircle, Users, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import StatCard from "@/components/StatCard";
 import DataTable from "@/components/DataTable";
+import AIChat from "@/components/AIChat";
 import { linkedInData, youtubeVideos } from "@/data/sampleData";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -164,10 +165,14 @@ const Dashboard = () => {
         </ResponsiveContainer>
       </div>
 
-      {/* Recent Agent Activity */}
-      <div className="stat-card">
-        <h2 className="mb-4">Recent Agent Activity</h2>
-        <DataTable columns={activityColumns} data={recentActivity} />
+      {/* Recent Agent Activity & AI Chat */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="stat-card">
+          <h2 className="mb-4">Recent Agent Activity</h2>
+          <DataTable columns={activityColumns} data={recentActivity} />
+        </div>
+        
+        <AIChat />
       </div>
     </div>
   );
