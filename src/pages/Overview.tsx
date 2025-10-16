@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useAgents } from "@/hooks/useAgents";
@@ -16,6 +16,7 @@ const Overview = () => {
   const { user } = useAuth();
   const { youtubeData, linkedInData, loading: analyticsLoading } = useAnalytics(user?.id);
   const { agents, runs, loading: agentsLoading, runAgent } = useAgents();
+  const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
 
   // Calculate KPIs for last 30/90 days
   const kpis = useMemo(() => {
