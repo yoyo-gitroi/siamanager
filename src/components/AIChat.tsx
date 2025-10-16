@@ -22,8 +22,16 @@ const AIChat = () => {
 
       <p className="text-sm text-muted-foreground mt-4">
         Ask questions about your social media data, get insights, and receive
-        actionable recommendations.
+        actionable recommendations powered by your custom GPT assistant.
       </p>
+      <a
+        href="https://chatgpt.com/g/g-68f02b41ed888191b419291fb6f77cee-sia-social-insights-avatar"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-primary hover:underline block mt-2"
+      >
+        Open in ChatGPT →
+      </a>
     </Card>
   );
 };
