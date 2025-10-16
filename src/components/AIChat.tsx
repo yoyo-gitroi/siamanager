@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { SetupAssistant } from "./SetupAssistant";
 
 interface Msg { role: "user" | "assistant"; content: string }
 
@@ -13,6 +14,7 @@ const AIChat = () => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [threadId, setThreadId] = useState<string>();
   const { toast } = useToast();
 
   const send = async () => {
@@ -23,9 +25,15 @@ const AIChat = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat", {
-        body: { messages: [...messages, userMsg] },
+        body: { messages: [...messages, userMsg], threadId },
       });
       if (error || data?.error) throw new Error(error?.message || data?.error || "Chat failed");
+      
+      // Save thread ID for conversation continuity
+      if (data.threadId && !threadId) {
+        setThreadId(data.threadId);
+      }
+      
       const assistant: Msg = { role: "assistant", content: data.message };
       setMessages((prev) => [...prev, assistant]);
     } catch (e: any) {
@@ -36,7 +44,9 @@ const AIChat = () => {
   };
 
   return (
-    <Card className="p-6 rounded-2xl shadow-lg border-border">
+    <div className="space-y-4">
+      <SetupAssistant />
+      <Card className="p-6 rounded-2xl shadow-lg border-border">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-xl bg-primary/10 text-primary">
           <MessageSquare className="h-5 w-5" />
@@ -64,7 +74,8 @@ const AIChat = () => {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
-    </Card>
+      </Card>
+    </div>
   );
 };
 
