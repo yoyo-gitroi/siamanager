@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useAnalytics } from "@/hooks/useAnalytics";
+import { useExcelData } from "@/hooks/useExcelData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const GrowthInsights = () => {
   const { user } = useAuth();
-  const { youtubeData, linkedInData, loading } = useAnalytics(user?.id);
+  const { youtubeData, linkedInData, loading } = useExcelData();
 
   // Best Times to Post Analysis
   const bestTimesData = useMemo(() => {
@@ -240,7 +240,7 @@ const GrowthInsights = () => {
               </p>
               <Badge variant="secondary" className="text-xs">
                 <TrendingUp className="h-3 w-3 mr-1" />
-                +{linkedInData.length > 7 ? ((linkedInData[0]?.followers || 0) - (linkedInData[7]?.followers || 0)).toFixed(0) : "0"}% weekly
+                Growing
               </Badge>
             </div>
           </div>

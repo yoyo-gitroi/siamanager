@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useExcelData } from "./useExcelData";
 
 interface LinkedInAnalytics {
   date: string;
   impressions: number;
   engagement: number;
-  followers: number;
-  reach: number;
+  followers?: number;
+  reach?: number;
 }
 
 interface YouTubeAnalytics {
   video_title: string;
-  video_url: string;
+  video_url?: string;
   publish_date: string;
   views: number;
   watch_time_hours: number;
@@ -24,15 +25,23 @@ export const useAnalytics = (userId: string | undefined) => {
   const [linkedInData, setLinkedInData] = useState<LinkedInAnalytics[]>([]);
   const [youtubeData, setYouTubeData] = useState<YouTubeAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Load Excel data as fallback
+  const { linkedInData: excelLinkedIn, youtubeData: excelYoutube, loading: excelLoading } = useExcelData();
 
   useEffect(() => {
     if (!userId) {
-      setLoading(false);
+      // If no user, use Excel data
+      if (!excelLoading) {
+        setLinkedInData(excelLinkedIn);
+        setYouTubeData(excelYoutube);
+        setLoading(false);
+      }
       return;
     }
 
     fetchAnalytics();
-  }, [userId]);
+  }, [userId, excelLoading, excelLinkedIn, excelYoutube]);
 
   const fetchAnalytics = async () => {
     if (!userId) return;
@@ -51,10 +60,28 @@ export const useAnalytics = (userId: string | undefined) => {
           .order("views", { ascending: false }),
       ]);
 
-      if (linkedIn.data) setLinkedInData(linkedIn.data);
-      if (youtube.data) setYouTubeData(youtube.data);
+      // Use DB data if available, otherwise fall back to Excel data
+      if (linkedIn.data && linkedIn.data.length > 0) {
+        setLinkedInData(linkedIn.data);
+      } else {
+        setLinkedInData(excelLinkedIn);
+      }
+
+      if (youtube.data && youtube.data.length > 0) {
+        // Map DB records to include calculated engagement
+        const mappedYoutube = youtube.data.map(v => ({
+          ...v,
+          engagement: v.engagement || Math.round(v.views * 0.05)
+        }));
+        setYouTubeData(mappedYoutube);
+      } else {
+        setYouTubeData(excelYoutube);
+      }
     } catch (error) {
       console.error("Error fetching analytics:", error);
+      // Fall back to Excel data on error
+      setLinkedInData(excelLinkedIn);
+      setYouTubeData(excelYoutube);
     } finally {
       setLoading(false);
     }

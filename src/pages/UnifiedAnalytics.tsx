@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 const UnifiedAnalytics = () => {
-  const { linkedInData, youtubeData, loading, error } = useExcelData();
+  const { linkedInData, youtubeData, loading } = useExcelData();
   const [period, setPeriod] = useState<"7d" | "30d">("30d");
   const [activeTab, setActiveTab] = useState<"overview" | "youtube" | "linkedin">("overview");
 
@@ -113,7 +113,7 @@ const UnifiedAnalytics = () => {
         ctr: video.ctr.toFixed(2),
         vtr: vtr.toFixed(3),
         watchTimePerView: watchTimePerView.toFixed(2),
-        url: video.video_url,
+        url: video.video_url || '',
       };
     });
   }, [youtubeData]);
@@ -154,17 +154,6 @@ const UnifiedAnalytics = () => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-danger mx-auto mb-4" />
-          <p className="text-danger">{error}</p>
-        </div>
       </div>
     );
   }
