@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useExcelData } from "@/hooks/useExcelData";
 import { Card } from "@/components/ui/card";
@@ -6,65 +6,75 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, Clock, Hash, Users, Zap, Target, BarChart3 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ScatterChart, Scatter, PieChart, Pie, Cell } from "recharts";
-import { format, parseISO, getHours, getDay, subDays, isAfter } from "date-fns";
+import { format, parseISO, getHours, getDay, subDays, isAfter, isWithinInterval } from "date-fns";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const GrowthInsights = () => {
   const { user } = useAuth();
   const { youtubeData, linkedInData, loading } = useExcelData();
+  const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
 
   // Best Times to Post Analysis
   const bestTimesData = useMemo(() => {
     const hourlyPerformance: Record<number, { posts: number; avgEngagement: number; avgViews: number }> = {};
+
+    const filtered = youtubeData.filter((video) => {
+      if (!video.publish_date) return false;
+      const d = new Date(video.publish_date);
+      return isWithinInterval(d, { start: dateRange.from, end: dateRange.to });
+    });
     
-    youtubeData.forEach((video) => {
-      if (video.publish_date) {
-        const hour = getHours(new Date(video.publish_date));
-        if (!hourlyPerformance[hour]) {
-          hourlyPerformance[hour] = { posts: 0, avgEngagement: 0, avgViews: 0 };
-        }
-        hourlyPerformance[hour].posts += 1;
-        hourlyPerformance[hour].avgViews += video.views;
-        hourlyPerformance[hour].avgEngagement += video.engagement;
+    filtered.forEach((video) => {
+      const hour = getHours(new Date(video.publish_date));
+      if (!hourlyPerformance[hour]) {
+        hourlyPerformance[hour] = { posts: 0, avgEngagement: 0, avgViews: 0 };
       }
+      hourlyPerformance[hour].posts += 1;
+      hourlyPerformance[hour].avgViews += video.views;
+      hourlyPerformance[hour].avgEngagement += video.engagement;
     });
 
     return Object.entries(hourlyPerformance)
       .map(([hour, data]) => ({
         hour: `${hour}:00`,
-        avgEngagement: Math.round(data.avgEngagement / data.posts),
-        avgViews: Math.round(data.avgViews / data.posts),
+        avgEngagement: data.posts > 0 ? Math.round(data.avgEngagement / data.posts) : 0,
+        avgViews: data.posts > 0 ? Math.round(data.avgViews / data.posts) : 0,
         posts: data.posts,
       }))
       .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
-  }, [youtubeData]);
+  }, [youtubeData, dateRange]);
 
   // Day of Week Performance
   const dayOfWeekData = useMemo(() => {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayPerformance: Record<number, { posts: number; totalEngagement: number; totalViews: number }> = {};
 
-    youtubeData.forEach((video) => {
-      if (video.publish_date) {
-        const day = getDay(new Date(video.publish_date));
-        if (!dayPerformance[day]) {
-          dayPerformance[day] = { posts: 0, totalEngagement: 0, totalViews: 0 };
-        }
-        dayPerformance[day].posts += 1;
-        dayPerformance[day].totalViews += video.views;
-        dayPerformance[day].totalEngagement += video.engagement;
+    const filtered = youtubeData.filter((video) => {
+      if (!video.publish_date) return false;
+      const d = new Date(video.publish_date);
+      return isWithinInterval(d, { start: dateRange.from, end: dateRange.to });
+    });
+
+    filtered.forEach((video) => {
+      const day = getDay(new Date(video.publish_date));
+      if (!dayPerformance[day]) {
+        dayPerformance[day] = { posts: 0, totalEngagement: 0, totalViews: 0 };
       }
+      dayPerformance[day].posts += 1;
+      dayPerformance[day].totalViews += video.views;
+      dayPerformance[day].totalEngagement += video.engagement;
     });
 
     return Object.entries(dayPerformance)
       .map(([day, data]) => ({
         day: dayNames[parseInt(day)],
-        avgEngagement: Math.round(data.totalEngagement / data.posts),
-        avgViews: Math.round(data.totalViews / data.posts),
+        avgEngagement: data.posts > 0 ? Math.round(data.totalEngagement / data.posts) : 0,
+        avgViews: data.posts > 0 ? Math.round(data.totalViews / data.posts) : 0,
         posts: data.posts,
       }));
-  }, [youtubeData]);
+  }, [youtubeData, dateRange]);
 
   // Content Length Performance
   const contentLengthData = useMemo(() => {
@@ -181,11 +191,13 @@ const GrowthInsights = () => {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl">
-      <div>
-        <h1 className="mb-2">Growth Insights</h1>
-        <p className="text-muted-foreground">
-          Actionable insights to drive audience growth and engagement
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="mb-2">Growth Insights</h1>
+          <p className="text-muted-foreground">
+            Actionable insights to drive audience growth and engagement
+          </p>
+        </div>
       </div>
 
       {/* Actionable Recommendations */}
@@ -250,7 +262,10 @@ const GrowthInsights = () => {
       {/* Best Times to Post */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6 border-none shadow-sm">
-          <h2 className="mb-4">Best Hours to Post</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2>Best Hours to Post</h2>
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={bestTimesData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -265,6 +280,7 @@ const GrowthInsights = () => {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
                 }}
+                formatter={(value: any) => [value, "Avg Engagement"]}
               />
               <Bar dataKey="avgEngagement" fill="hsl(var(--primary))" />
             </BarChart>
@@ -272,7 +288,10 @@ const GrowthInsights = () => {
         </Card>
 
         <Card className="p-6 border-none shadow-sm">
-          <h2 className="mb-4">Best Days to Post</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2>Best Days to Post</h2>
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={dayOfWeekData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -284,6 +303,7 @@ const GrowthInsights = () => {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
                 }}
+                formatter={(value: any) => [value, "Avg Views"]}
               />
               <Legend />
               <Bar dataKey="avgViews" fill="hsl(var(--danger))" name="Avg Views" />

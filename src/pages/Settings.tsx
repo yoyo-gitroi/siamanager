@@ -19,7 +19,8 @@ const Settings = () => {
   const [prefillLoading, setPrefillLoading] = useState<string | null>(null);
 
   const handleTestConnection = async (agent: any) => {
-    if (!agent.webhook_url) {
+    const urlToTest = (editingAgent === agent.id && webhookUrl) ? webhookUrl : agent.webhook_url;
+    if (!urlToTest) {
       toast.error("No webhook URL configured");
       return;
     }
@@ -27,11 +28,13 @@ const Settings = () => {
     setTestingAgent(agent.id);
 
     try {
-      const response = await fetch(agent.webhook_url, {
+      const response = await fetch(urlToTest, {
         method: agent.webhook_method || "POST",
         headers: { "Content-Type": "application/json", ...agent.webhook_headers },
         body: JSON.stringify({
           test: true,
+          source: "settings_test",
+          agent_id: agent.id,
           timestamp: new Date().toISOString(),
         }),
       });

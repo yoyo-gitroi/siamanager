@@ -3,6 +3,7 @@ import AgentCard from "@/components/AgentCard";
 import { agents as initialAgents } from "@/data/sampleData";
 import { Agent, WebhookPayload } from "@/types";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Agents = () => {
   const [agents, setAgents] = useState(initialAgents);
@@ -27,10 +28,20 @@ const Agents = () => {
     };
 
     try {
-      // Resolve webhook URL from agent or saved Settings
-      const saved = localStorage.getItem("asm-webhooks");
-      const mapping: Record<string, string> = saved ? JSON.parse(saved) : {};
-      const webhookUrl = agent.webhookUrl || mapping[agent.id];
+      // Resolve webhook URL: per-user override from Cloud or agent default
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id || "anonymous";
+
+      let webhookUrl: string | null = agent.webhookUrl || null;
+      if (uid && uid !== "anonymous") {
+        const { data: override } = await supabase
+          .from("agent_webhooks")
+          .select("webhook_url")
+          .eq("user_id", uid)
+          .eq("agent_id", agent.id)
+          .maybeSingle();
+        if (override?.webhook_url) webhookUrl = override.webhook_url;
+      }
 
       if (!webhookUrl) {
         toast.error("Webhook URL not configured", {
@@ -42,7 +53,7 @@ const Agents = () => {
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, userId: uid }),
       });
 
       if (!response.ok) {
