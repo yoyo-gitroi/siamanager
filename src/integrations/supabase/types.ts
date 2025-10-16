@@ -26,7 +26,7 @@ export type Database = {
           response_code: number | null
           started_at: string | null
           status: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           agent_id: string
@@ -39,7 +39,7 @@ export type Database = {
           response_code?: number | null
           started_at?: string | null
           status: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           agent_id?: string
@@ -52,7 +52,7 @@ export type Database = {
           response_code?: number | null
           started_at?: string | null
           status?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle, Upload, FileText, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { validateWebhookUrl } from "@/utils/webhookValidation";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -54,6 +55,13 @@ const Settings = () => {
   const handleSaveWebhook = async (agentId: string) => {
     if (!webhookUrl) {
       toast.error("Please enter a webhook URL");
+      return;
+    }
+
+    // Validate webhook URL to prevent SSRF attacks
+    const validation = validateWebhookUrl(webhookUrl);
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid webhook URL");
       return;
     }
 
