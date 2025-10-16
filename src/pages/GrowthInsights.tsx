@@ -254,8 +254,15 @@ const GrowthInsights = () => {
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={bestTimesData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="hour" className="text-xs" />
-              <YAxis className="text-xs" />
+              <XAxis 
+                dataKey="hour" 
+                className="text-xs"
+                label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
+              />
+              <YAxis 
+                className="text-xs"
+                label={{ value: 'Avg Engagement', angle: -90, position: 'insideLeft' }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
@@ -263,8 +270,7 @@ const GrowthInsights = () => {
                   borderRadius: "8px",
                 }}
               />
-              <Legend />
-              <Bar dataKey="avgEngagement" fill="hsl(var(--primary))" name="Avg Engagement" />
+              <Bar dataKey="avgEngagement" fill="hsl(var(--primary))" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
