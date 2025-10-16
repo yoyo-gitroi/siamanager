@@ -76,9 +76,24 @@ export const useAgents = () => {
   };
 
   const runAgent = async (agentId: string, customPayload?: Record<string, any>) => {
-    const agent = agents.find((a) => a.id === agentId);
-    if (!agent || !agent.webhook_url) {
-      toast.error("Agent not configured");
+    // Fetch latest agent data to ensure we have current webhook_url
+    const { data: latestAgent, error: fetchError } = await supabase
+      .from("agents")
+      .select("*")
+      .eq("id", agentId)
+      .single();
+
+    if (fetchError || !latestAgent) {
+      toast.error("Failed to fetch agent data");
+      return;
+    }
+
+    const agent = latestAgent as Agent;
+    
+    if (!agent.webhook_url) {
+      toast.error("Agent not configured", {
+        description: "Please configure the webhook URL in Settings first",
+      });
       return;
     }
 
@@ -175,7 +190,7 @@ export const useAgents = () => {
 
       if (error) throw error;
       toast.success("Agent updated");
-      fetchAgents();
+      await fetchAgents(); // Ensure we refetch to get fresh data
     } catch (error: any) {
       toast.error("Failed to update agent");
     }
