@@ -25,7 +25,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-md">
             <span className="text-primary-foreground font-bold text-lg">A</span>
           </div>
-          <h1 className="text-xl font-bold">ASM Control Panel</h1>
+          <h1 className="text-xl font-bold">SIA | Social Insights Avatar</h1>
         </div>
       </div>
 

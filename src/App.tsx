@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
+import YouTubeAnalytics from "./pages/YouTubeAnalytics";
+import LinkedInAnalytics from "./pages/LinkedInAnalytics";
 import Agents from "./pages/Agents";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
@@ -25,6 +27,8 @@ const App = () => (
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="youtube" element={<YouTubeAnalytics />} />
+            <Route path="linkedin" element={<LinkedInAnalytics />} />
             <Route path="agents" element={<Agents />} />
             <Route path="import" element={<Import />} />
             <Route path="settings" element={<Settings />} />

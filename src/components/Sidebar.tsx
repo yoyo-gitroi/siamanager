@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, Bot, Upload, Settings, X } from "lucide-react";
+import { Home, BarChart3, Bot, Upload, Settings, X, TrendingUp, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,8 @@ interface SidebarProps {
 const navItems = [
   { icon: Home, label: "Dashboard", path: "/" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
+  { icon: TrendingUp, label: "YouTube", path: "/youtube" },
+  { icon: Linkedin, label: "LinkedIn", path: "/linkedin" },
   { icon: Bot, label: "Agents", path: "/agents" },
   { icon: Upload, label: "Import Data", path: "/import" },
   { icon: Settings, label: "Settings", path: "/settings" },
