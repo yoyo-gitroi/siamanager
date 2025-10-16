@@ -118,8 +118,9 @@ export const useAgents = () => {
       .from("agent_runs")
       .insert({
         agent_id: agentId,
+        user_id: uid,
         status: "running",
-        request_body: customPayload || agent.payload_template,
+        request_body: customPayload || agent.payload_template || {},
       })
       .select()
       .single();

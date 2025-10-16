@@ -259,10 +259,6 @@ const GrowthInsights = () => {
                 className="text-xs"
                 label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
               />
-              <YAxis 
-                className="text-xs"
-                label={{ value: 'Avg Engagement', angle: -90, position: 'insideLeft' }}
-              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
