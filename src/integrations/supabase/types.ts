@@ -142,6 +142,51 @@ export type Database = {
         }
         Relationships: []
       }
+      content_correlations: {
+        Row: {
+          correlation_coeff: number
+          created_at: string | null
+          date_bucket: string
+          id: string
+          metric_a: string
+          metric_b: string
+          notes: string | null
+          p_value: number | null
+          platform_a: string
+          platform_b: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          correlation_coeff: number
+          created_at?: string | null
+          date_bucket: string
+          id?: string
+          metric_a: string
+          metric_b: string
+          notes?: string | null
+          p_value?: number | null
+          platform_a: string
+          platform_b: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          correlation_coeff?: number
+          created_at?: string | null
+          date_bucket?: string
+          id?: string
+          metric_a?: string
+          metric_b?: string
+          notes?: string | null
+          p_value?: number | null
+          platform_a?: string
+          platform_b?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_queue: {
         Row: {
           caption: string | null
@@ -184,6 +229,93 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      guest_candidates: {
+        Row: {
+          audience_overlap_estimate: number | null
+          created_at: string | null
+          followers: number | null
+          handle: string
+          id: string
+          name: string
+          notes: string | null
+          platform: string
+          source_url: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          audience_overlap_estimate?: number | null
+          created_at?: string | null
+          followers?: number | null
+          handle: string
+          id?: string
+          name: string
+          notes?: string | null
+          platform: string
+          source_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          audience_overlap_estimate?: number | null
+          created_at?: string | null
+          followers?: number | null
+          handle?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          platform?: string
+          source_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_analytics: {
+        Row: {
+          comments: number | null
+          created_at: string | null
+          date: string
+          engagement: number | null
+          followers: number | null
+          id: string
+          likes: number | null
+          posts_count: number | null
+          updated_at: string | null
+          user_id: string
+          views_impressions: number | null
+        }
+        Insert: {
+          comments?: number | null
+          created_at?: string | null
+          date: string
+          engagement?: number | null
+          followers?: number | null
+          id?: string
+          likes?: number | null
+          posts_count?: number | null
+          updated_at?: string | null
+          user_id: string
+          views_impressions?: number | null
+        }
+        Update: {
+          comments?: number | null
+          created_at?: string | null
+          date?: string
+          engagement?: number | null
+          followers?: number | null
+          id?: string
+          likes?: number | null
+          posts_count?: number | null
+          updated_at?: string | null
+          user_id?: string
+          views_impressions?: number | null
         }
         Relationships: []
       }
@@ -247,6 +379,39 @@ export type Database = {
         }
         Relationships: []
       }
+      social_accounts: {
+        Row: {
+          created_at: string | null
+          handle: string
+          id: string
+          is_primary: boolean | null
+          oauth_token: string | null
+          platform: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          handle: string
+          id?: string
+          is_primary?: boolean | null
+          oauth_token?: string | null
+          platform: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          handle?: string
+          id?: string
+          is_primary?: boolean | null
+          oauth_token?: string | null
+          platform?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -270,43 +435,130 @@ export type Database = {
       }
       youtube_analytics: {
         Row: {
+          content_type: string | null
           created_at: string | null
           ctr: number | null
           engagement: number | null
           id: string
           impressions: number | null
           publish_date: string | null
+          subscribers: number | null
           user_id: string
           video_title: string
           video_url: string | null
           views: number | null
+          watch_hours: number | null
           watch_time_hours: number | null
         }
         Insert: {
+          content_type?: string | null
           created_at?: string | null
           ctr?: number | null
           engagement?: number | null
           id?: string
           impressions?: number | null
           publish_date?: string | null
+          subscribers?: number | null
           user_id: string
           video_title: string
           video_url?: string | null
           views?: number | null
+          watch_hours?: number | null
           watch_time_hours?: number | null
         }
         Update: {
+          content_type?: string | null
           created_at?: string | null
           ctr?: number | null
           engagement?: number | null
           id?: string
           impressions?: number | null
           publish_date?: string | null
+          subscribers?: number | null
           user_id?: string
           video_title?: string
           video_url?: string | null
           views?: number | null
+          watch_hours?: number | null
           watch_time_hours?: number | null
+        }
+        Relationships: []
+      }
+      youtube_external_signals: {
+        Row: {
+          created_at: string | null
+          id: string
+          metric: string
+          observed_at: string | null
+          source: string
+          user_id: string
+          value: number
+          video_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          metric: string
+          observed_at?: string | null
+          source: string
+          user_id: string
+          value: number
+          video_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metric?: string
+          observed_at?: string | null
+          source?: string
+          user_id?: string
+          value?: number
+          video_id?: string
+        }
+        Relationships: []
+      }
+      yt_thumbnail_tests: {
+        Row: {
+          created_at: string | null
+          ctr: number | null
+          id: string
+          impressions: number | null
+          notes: string | null
+          updated_at: string | null
+          user_id: string
+          variant_label: string
+          video_id: string
+          window_end: string
+          window_start: string
+          winner: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          notes?: string | null
+          updated_at?: string | null
+          user_id: string
+          variant_label: string
+          video_id: string
+          window_end: string
+          window_start: string
+          winner?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          notes?: string | null
+          updated_at?: string | null
+          user_id?: string
+          variant_label?: string
+          video_id?: string
+          window_end?: string
+          window_start?: string
+          winner?: boolean | null
         }
         Relationships: []
       }
