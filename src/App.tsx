@@ -13,6 +13,10 @@ import Engagement from "./pages/Engagement";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import MatrixAnalytics from "./pages/MatrixAnalytics";
+import ContentWorkflow from "./pages/ContentWorkflow";
+import GuestOutreach from "./pages/GuestOutreach";
+import ThumbnailTests from "./pages/ThumbnailTests";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +36,10 @@ const App = () => (
             <Route path="publishing" element={<Publishing />} />
             <Route path="engagement" element={<Engagement />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="matrix" element={<MatrixAnalytics />} />
+            <Route path="workflow" element={<ContentWorkflow />} />
+            <Route path="guests" element={<GuestOutreach />} />
+            <Route path="youtube/ab-tests" element={<ThumbnailTests />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
