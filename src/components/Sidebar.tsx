@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, FileText, Calendar, MessageSquare, Settings, X, TrendingUp, Grid3x3, Video, UserPlus, TestTube } from "lucide-react";
+import { Home, BarChart3, FileText, Calendar, MessageSquare, Settings, X, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,13 +12,9 @@ const navItems = [
   { icon: Home, label: "Overview", path: "/" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: TrendingUp, label: "Growth Insights", path: "/growth" },
-  { icon: Grid3x3, label: "Matrix", path: "/matrix" },
-  { icon: Video, label: "Workflow", path: "/workflow" },
   { icon: FileText, label: "Content", path: "/content" },
   { icon: Calendar, label: "Publishing", path: "/publishing" },
   { icon: MessageSquare, label: "Engagement", path: "/engagement" },
-  { icon: UserPlus, label: "Guests", path: "/guests" },
-  { icon: TestTube, label: "A/B Tests", path: "/youtube/ab-tests" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 

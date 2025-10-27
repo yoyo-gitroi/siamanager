@@ -16,12 +16,9 @@ interface YouTubeAnalytics {
   publish_date: string;
   views: number;
   watch_time_hours: number;
-  watch_hours: number;
-  subscribers: number;
   impressions: number;
   ctr: number;
   engagement: number;
-  content_type?: string;
 }
 
 export const useAnalytics = (userId: string | undefined) => {
@@ -37,7 +34,7 @@ export const useAnalytics = (userId: string | undefined) => {
       // If no user, use Excel data
       if (!excelLoading) {
         setLinkedInData(excelLinkedIn);
-        setYouTubeData(excelYoutube.map(v => ({ ...v, watch_hours: v.watch_time_hours || 0, subscribers: 0, content_type: 'other' })));
+        setYouTubeData(excelYoutube);
         setLoading(false);
       }
       return;
@@ -78,13 +75,13 @@ export const useAnalytics = (userId: string | undefined) => {
         }));
         setYouTubeData(mappedYoutube);
       } else {
-        setYouTubeData(excelYoutube.map(v => ({ ...v, watch_hours: v.watch_time_hours || 0, subscribers: 0, content_type: 'other' })));
+        setYouTubeData(excelYoutube);
       }
     } catch (error) {
       console.error("Error fetching analytics:", error);
       // Fall back to Excel data on error
       setLinkedInData(excelLinkedIn);
-      setYouTubeData(excelYoutube.map(v => ({ ...v, watch_hours: v.watch_time_hours || 0, subscribers: 0, content_type: 'other' })));
+      setYouTubeData(excelYoutube);
     } finally {
       setLoading(false);
     }
