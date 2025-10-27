@@ -20,6 +20,7 @@ import ThumbnailTests from "./pages/ThumbnailTests";
 
 const queryClient = new QueryClient();
 
+// Main App component with all routes
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
