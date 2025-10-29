@@ -7,11 +7,39 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { code } = await req.json();
+    const { code, state } = await req.json();
 
     if (!code) {
       throw new Error('Missing authorization code');
     }
+
+    if (!state) {
+      throw new Error('Missing state parameter');
+    }
+
+    // Verify state and get user_id
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: stateRecord, error: stateError } = await supabase
+      .from('oauth_states')
+      .select('user_id')
+      .eq('state', state)
+      .maybeSingle();
+
+    if (stateError || !stateRecord) {
+      console.error('Invalid state:', stateError);
+      throw new Error('Invalid or expired state parameter');
+    }
+
+    const userId = stateRecord.user_id;
+
+    // Delete used state to prevent replay attacks
+    await supabase.from('oauth_states').delete().eq('state', state);
+
+    console.log('State verified for user:', userId);
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
@@ -64,18 +92,14 @@ Deno.serve(async (req) => {
 
     console.log('Channel ID:', channelId);
 
-    // Store tokens in database
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
+    // Store tokens in database with user_id
     const expiryTs = new Date(Date.now() + tokens.expires_in * 1000);
 
     const { error: dbError } = await supabase
       .from('google_oauth_tokens')
       .upsert({
         provider: 'google',
+        user_id: userId,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expiry_ts: expiryTs.toISOString(),

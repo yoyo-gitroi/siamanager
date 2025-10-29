@@ -31,10 +31,16 @@ export default function OAuthCallback() {
       }
 
       try {
-        // Exchange code for tokens
+        // Get state from URL
+        const state = params.get('state');
+        if (!state) {
+          throw new Error('Missing state parameter');
+        }
+
+        // Exchange code for tokens with state verification
         const { data, error: callbackError } = await supabase.functions.invoke(
           'google-oauth-callback',
-          { body: { code } }
+          { body: { code, state } }
         );
 
         if (callbackError) throw callbackError;

@@ -8,3 +8,12 @@ verify_jwt = true
 
 [functions.upload-files-to-assistant]
 verify_jwt = false
+
+[functions.google-oauth-start]
+verify_jwt = true
+
+[functions.yt-backfill]
+verify_jwt = true
+
+[functions.yt-sync-daily]
+verify_jwt = true

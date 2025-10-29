@@ -1,3 +1,4 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
@@ -6,6 +7,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error('Unauthorized');
+    }
+
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
     const redirectUri = Deno.env.get('GOOGLE_REDIRECT_URI');
 
@@ -22,6 +40,21 @@ Deno.serve(async (req) => {
     // Generate state parameter for CSRF protection
     const state = crypto.randomUUID();
     
+    // Store state in database with user_id for verification
+    const serviceSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { error: stateError } = await serviceSupabase
+      .from('oauth_states')
+      .insert({ state, user_id: user.id });
+
+    if (stateError) {
+      console.error('Failed to store state:', stateError);
+      throw new Error('Failed to initialize OAuth flow');
+    }
+
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('response_type', 'code');
@@ -30,7 +63,7 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set('prompt', 'consent');
     authUrl.searchParams.set('state', state);
 
-    console.log('Generated OAuth URL with state:', authUrl.toString());
+    console.log('Generated OAuth URL with state for user:', user.id);
 
     return new Response(
       JSON.stringify({ url: authUrl.toString() }),

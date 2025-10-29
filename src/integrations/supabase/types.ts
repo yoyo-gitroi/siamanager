@@ -242,6 +242,7 @@ export type Database = {
           refresh_token: string
           scope: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           access_token: string
@@ -252,6 +253,7 @@ export type Database = {
           refresh_token: string
           scope: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           access_token?: string
@@ -262,6 +264,7 @@ export type Database = {
           refresh_token?: string
           scope?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -381,6 +384,27 @@ export type Database = {
           id?: string
           impressions?: number | null
           reach?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oauth_states: {
+        Row: {
+          created_at: string
+          id: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          state?: string
           user_id?: string
         }
         Relationships: []
@@ -675,6 +699,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_oauth_states: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

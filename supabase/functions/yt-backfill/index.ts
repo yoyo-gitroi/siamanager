@@ -31,10 +31,11 @@ async function refreshToken(refreshToken: string): Promise<any> {
   return await response.json();
 }
 
-async function getValidToken(supabase: any): Promise<string> {
+async function getValidToken(supabase: any, userId: string): Promise<string> {
   const { data: tokens, error } = await supabase
     .from('google_oauth_tokens')
     .select('*')
+    .eq('user_id', userId)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -123,17 +124,34 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error('Unauthorized');
+    }
+
     const { fromDate = '2012-01-01', toDate } = await req.json();
     const endDate = toDate || new Date().toISOString().split('T')[0];
 
-    console.log('Starting backfill from', fromDate, 'to', endDate);
+    console.log('Starting backfill from', fromDate, 'to', endDate, 'for user:', user.id);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const accessToken = await getValidToken(supabase);
+    const accessToken = await getValidToken(supabase, user.id);
     console.log('Got valid access token');
 
     // Get channel ID
