@@ -7,22 +7,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get authenticated user
+    // Get authenticated user by decoding JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Decode JWT to extract user_id
+    const jwt = authHeader.replace('Bearer ', '');
+    const payload = JSON.parse(atob(jwt.split('.')[1]));
+    const userId = payload.sub;
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Unauthorized');
+    if (!userId) {
+      throw new Error('Unauthorized - invalid token');
     }
+
+    console.log('Detected user from JWT:', userId);
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
     const redirectUri = Deno.env.get('GOOGLE_REDIRECT_URI');
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     const { error: stateError } = await serviceSupabase
       .from('oauth_states')
-      .insert({ state, user_id: user.id });
+      .insert({ state, user_id: userId });
 
     if (stateError) {
       console.error('Failed to store state:', stateError);
@@ -63,7 +63,8 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set('prompt', 'consent');
     authUrl.searchParams.set('state', state);
 
-    console.log('Generated OAuth URL with state for user:', user.id);
+    console.log('State stored for user:', userId);
+    console.log('OAuth URL generated');
 
     return new Response(
       JSON.stringify({ url: authUrl.toString() }),
