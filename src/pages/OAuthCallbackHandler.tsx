@@ -1,32 +1,75 @@
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function OAuthCallback() {
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [message, setMessage] = useState('Completing authorization...');
+
   useEffect(() => {
-    // Get the authorization code from URL
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const error = params.get('error');
+    const handleCallback = async () => {
+      // Get the authorization code from URL
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const error = params.get('error');
 
-    if (error) {
-      console.error('OAuth error:', error);
-      window.opener?.postMessage({ type: 'oauth-error', error }, '*');
-      window.close();
-      return;
-    }
+      if (error) {
+        console.error('OAuth error:', error);
+        setStatus('error');
+        setMessage(`Authorization failed: ${error}`);
+        setTimeout(() => navigate('/youtube-setup'), 3000);
+        return;
+      }
 
-    if (code) {
-      // Send code back to parent window
-      window.opener?.postMessage({ type: 'oauth-callback', code }, '*');
-      // Don't close immediately - parent will close after processing
-    }
-  }, []);
+      if (!code) {
+        setStatus('error');
+        setMessage('No authorization code received');
+        setTimeout(() => navigate('/youtube-setup'), 3000);
+        return;
+      }
+
+      try {
+        // Exchange code for tokens
+        const { data, error: callbackError } = await supabase.functions.invoke(
+          'google-oauth-callback',
+          { body: { code } }
+        );
+
+        if (callbackError) throw callbackError;
+
+        if (data?.success) {
+          setStatus('success');
+          setMessage('Authorization successful! Redirecting...');
+          setTimeout(() => navigate('/youtube-setup?authorized=true'), 1500);
+        } else {
+          throw new Error('Failed to complete authorization');
+        }
+      } catch (err) {
+        console.error('Callback error:', err);
+        setStatus('error');
+        setMessage(err.message || 'Failed to complete authorization');
+        setTimeout(() => navigate('/youtube-setup'), 3000);
+      }
+    };
+
+    handleCallback();
+  }, [navigate]);
 
   return (
-    <div className="flex items-center justify-center h-screen">
+    <div className="flex items-center justify-center h-screen bg-background">
       <div className="text-center space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-        <p className="text-muted-foreground">Completing authorization...</p>
+        {status === 'processing' && (
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+        )}
+        {status === 'success' && (
+          <CheckCircle className="h-12 w-12 mx-auto text-green-600" />
+        )}
+        {status === 'error' && (
+          <XCircle className="h-12 w-12 mx-auto text-destructive" />
+        )}
+        <p className="text-lg text-foreground">{message}</p>
       </div>
     </div>
   );

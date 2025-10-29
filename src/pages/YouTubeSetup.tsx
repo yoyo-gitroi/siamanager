@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +11,21 @@ export default function YouTubeSetup() {
   const [authorized, setAuthorized] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Check if we just returned from OAuth
+  useEffect(() => {
+    const isAuthorized = searchParams.get('authorized');
+    if (isAuthorized === 'true') {
+      setAuthorized(true);
+      toast({
+        title: "Success!",
+        description: "YouTube Analytics connected successfully",
+      });
+      // Clean up URL
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams, toast]);
 
   const handleOAuthStart = async () => {
     setLoading(true);
@@ -19,42 +35,8 @@ export default function YouTubeSetup() {
       if (error) throw error;
       
       if (data?.url) {
-        // Open OAuth popup
-        const width = 600;
-        const height = 700;
-        const left = (window.innerWidth / 2) - (width / 2);
-        const top = (window.innerHeight / 2) - (height / 2);
-        
-        const popup = window.open(
-          data.url,
-          'Google OAuth',
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-
-        // Listen for OAuth completion
-        window.addEventListener('message', async (event) => {
-          if (event.data.type === 'oauth-callback') {
-            popup?.close();
-            
-            // Exchange code for tokens
-            const { data: callbackData, error: callbackError } = await supabase.functions.invoke(
-              'google-oauth-callback',
-              { body: { code: event.data.code } }
-            );
-
-            if (callbackError) {
-              throw callbackError;
-            }
-
-            if (callbackData?.success) {
-              setAuthorized(true);
-              toast({
-                title: "Success!",
-                description: "YouTube Analytics connected successfully",
-              });
-            }
-          }
-        });
+        // Full-page redirect to Google OAuth
+        window.location.href = data.url;
       }
     } catch (error) {
       console.error('OAuth error:', error);
@@ -63,7 +45,6 @@ export default function YouTubeSetup() {
         description: error.message || "Failed to start OAuth flow",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
