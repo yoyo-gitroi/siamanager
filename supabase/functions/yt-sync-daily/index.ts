@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
 
 interface TokenRecord {
+  id: string;
   access_token: string;
   refresh_token: string;
   expiry_ts: string;
@@ -34,10 +35,12 @@ async function getValidToken(supabase: any): Promise<string> {
   const { data: tokens, error } = await supabase
     .from('google_oauth_tokens')
     .select('*')
-    .single();
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error || !tokens) {
-    throw new Error('No OAuth tokens found. Please authorize first.');
+    throw new Error('No OAuth tokens found in database. Please authorize first.');
   }
 
   const token = tokens as TokenRecord;
