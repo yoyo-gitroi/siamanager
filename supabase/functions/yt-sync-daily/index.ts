@@ -104,11 +104,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get authenticated user
+    // Get authenticated user by decoding JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
+
+    // Decode JWT to extract user_id
+    const jwt = authHeader.replace('Bearer ', '');
+    const payload = JSON.parse(atob(jwt.split('.')[1]));
+    const userId = payload.sub;
+
+    if (!userId) {
+      throw new Error('Unauthorized - invalid token');
+    }
+
+    console.log('Starting daily sync for user:', userId);
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -116,12 +127,7 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    console.log('Starting daily YouTube Analytics sync for user:', user.id);
+    console.log('Starting daily YouTube Analytics sync for user:', userId);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -129,7 +135,7 @@ Deno.serve(async (req) => {
     );
 
     // Get valid access token
-    const accessToken = await getValidToken(supabase, user.id);
+    const accessToken = await getValidToken(supabase, userId);
     console.log('Got valid access token');
 
     // Get channel ID
@@ -181,7 +187,7 @@ Deno.serve(async (req) => {
         .from('yt_channel_daily')
         .upsert({
           channel_id: channelId,
-          user_id: user.id,
+          user_id: userId,
           day: channelRow[0],
           views: channelRow[1] || 0,
           watch_time_seconds: (channelRow[2] || 0) * 60,
@@ -201,7 +207,7 @@ Deno.serve(async (req) => {
     if (videoData.rows && videoData.rows.length > 0) {
       const videoRows = videoData.rows.map((row: any) => ({
         channel_id: channelId,
-        user_id: user.id,
+        user_id: userId,
         video_id: row[1],
         day: row[0],
         views: row[2] || 0,
