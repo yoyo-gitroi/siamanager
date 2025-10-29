@@ -40,6 +40,8 @@ export default function OAuthCallback() {
         if (callbackError) throw callbackError;
 
         if (data?.success) {
+          // Set localStorage flag for cross-tab persistence
+          localStorage.setItem('yt_oauth_success', '1');
           setStatus('success');
           setMessage('Authorization successful! Redirecting...');
           setTimeout(() => navigate('/youtube-setup?authorized=true'), 1500);

@@ -13,17 +13,27 @@ export default function YouTubeSetup() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Check if we just returned from OAuth
+  // Check if we just returned from OAuth or localStorage flag
   useEffect(() => {
     const isAuthorized = searchParams.get('authorized');
-    if (isAuthorized === 'true') {
+    const localStorageFlag = localStorage.getItem('yt_oauth_success');
+    
+    if (isAuthorized === 'true' || localStorageFlag === '1') {
       setAuthorized(true);
+      
+      if (localStorageFlag === '1') {
+        localStorage.removeItem('yt_oauth_success');
+      }
+      
       toast({
         title: "Success!",
         description: "YouTube Analytics connected successfully",
       });
+      
       // Clean up URL
-      setSearchParams({});
+      if (isAuthorized === 'true') {
+        setSearchParams({});
+      }
     }
   }, [searchParams, setSearchParams, toast]);
 
@@ -35,8 +45,21 @@ export default function YouTubeSetup() {
       if (error) throw error;
       
       if (data?.url) {
-        // Full-page redirect to Google OAuth
-        window.location.href = data.url;
+        // Detect if we're in an iframe (preview mode)
+        const inIframe = window.self !== window.top;
+        
+        if (inIframe) {
+          // Open in new tab to bypass X-Frame-Options
+          window.open(data.url, '_blank', 'noopener,noreferrer');
+          setLoading(false);
+          toast({
+            title: "Authorization Opened",
+            description: "Complete authorization in the new tab, then return here.",
+          });
+        } else {
+          // Full-page redirect
+          window.location.href = data.url;
+        }
       }
     } catch (error) {
       console.error('OAuth error:', error);

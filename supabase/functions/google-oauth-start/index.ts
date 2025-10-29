@@ -13,9 +13,14 @@ Deno.serve(async (req) => {
       throw new Error('Missing Google OAuth configuration');
     }
 
+    console.log('Using redirect URI:', redirectUri);
+
     // Build OAuth URL with YouTube Analytics scope
     const scope = 'https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.readonly';
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    
+    // Generate state parameter for CSRF protection
+    const state = crypto.randomUUID();
     
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
@@ -23,8 +28,9 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set('scope', scope);
     authUrl.searchParams.set('access_type', 'offline');
     authUrl.searchParams.set('prompt', 'consent');
+    authUrl.searchParams.set('state', state);
 
-    console.log('Generated OAuth URL:', authUrl.toString());
+    console.log('Generated OAuth URL with state:', authUrl.toString());
 
     return new Response(
       JSON.stringify({ url: authUrl.toString() }),
