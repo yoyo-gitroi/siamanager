@@ -200,6 +200,7 @@ Deno.serve(async (req) => {
       if (channelData_analytics.rows && channelData_analytics.rows.length > 0) {
         const channelRows = channelData_analytics.rows.map((row: any) => ({
           channel_id: channelId,
+          user_id: user.id,
           day: row[0],
           views: row[1] || 0,
           watch_time_seconds: (row[2] || 0) * 60,
@@ -224,6 +225,7 @@ Deno.serve(async (req) => {
       if (videoData.rows && videoData.rows.length > 0) {
         const videoRows = videoData.rows.map((row: any) => ({
           channel_id: channelId,
+          user_id: user.id,
           video_id: row[1],
           day: row[0],
           views: row[2] || 0,

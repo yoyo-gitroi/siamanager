@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
         .from('yt_channel_daily')
         .upsert({
           channel_id: channelId,
+          user_id: user.id,
           day: channelRow[0],
           views: channelRow[1] || 0,
           watch_time_seconds: (channelRow[2] || 0) * 60,
@@ -200,6 +201,7 @@ Deno.serve(async (req) => {
     if (videoData.rows && videoData.rows.length > 0) {
       const videoRows = videoData.rows.map((row: any) => ({
         channel_id: channelId,
+        user_id: user.id,
         video_id: row[1],
         day: row[0],
         views: row[2] || 0,

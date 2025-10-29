@@ -104,6 +104,8 @@ Deno.serve(async (req) => {
         refresh_token: tokens.refresh_token,
         expiry_ts: expiryTs.toISOString(),
         scope: tokens.scope,
+      }, {
+        onConflict: 'provider,user_id'
       });
 
     if (dbError) {

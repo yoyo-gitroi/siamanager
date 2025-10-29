@@ -582,6 +582,7 @@ export type Database = {
           estimated_revenue: number | null
           subscribers_gained: number | null
           subscribers_lost: number | null
+          user_id: string | null
           views: number | null
           watch_time_seconds: number | null
         }
@@ -592,6 +593,7 @@ export type Database = {
           estimated_revenue?: number | null
           subscribers_gained?: number | null
           subscribers_lost?: number | null
+          user_id?: string | null
           views?: number | null
           watch_time_seconds?: number | null
         }
@@ -602,6 +604,7 @@ export type Database = {
           estimated_revenue?: number | null
           subscribers_gained?: number | null
           subscribers_lost?: number | null
+          user_id?: string | null
           views?: number | null
           watch_time_seconds?: number | null
         }
@@ -662,6 +665,7 @@ export type Database = {
           day: string
           impressions: number | null
           likes: number | null
+          user_id: string | null
           video_id: string
           views: number | null
           watch_time_seconds: number | null
@@ -675,6 +679,7 @@ export type Database = {
           day: string
           impressions?: number | null
           likes?: number | null
+          user_id?: string | null
           video_id: string
           views?: number | null
           watch_time_seconds?: number | null
@@ -688,6 +693,7 @@ export type Database = {
           day?: string
           impressions?: number | null
           likes?: number | null
+          user_id?: string | null
           video_id?: string
           views?: number | null
           watch_time_seconds?: number | null
