@@ -12,6 +12,9 @@ import Publishing from "./pages/Publishing";
 import Engagement from "./pages/Engagement";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import YouTubeSetup from "./pages/YouTubeSetup";
+import YouTubeDataView from "./pages/YouTubeDataView";
+import OAuthCallback from "./pages/OAuthCallbackHandler";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +27,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/oauth-callback" element={<OAuthCallback />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Overview />} />
             <Route path="analytics" element={<UnifiedAnalytics />} />
@@ -31,6 +35,8 @@ const App = () => (
             <Route path="content" element={<Content />} />
             <Route path="publishing" element={<Publishing />} />
             <Route path="engagement" element={<Engagement />} />
+            <Route path="youtube-setup" element={<YouTubeSetup />} />
+            <Route path="youtube-data" element={<YouTubeDataView />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
