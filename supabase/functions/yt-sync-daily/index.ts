@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
       accessToken,
       dateStr,
       dateStr,
-      'views,watchTime,subscribersGained,subscribersLost,estimatedRevenue',
+      'views,estimatedMinutesWatched,subscribersGained,subscribersLost,estimatedRevenue',
       'day'
     );
 
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
       accessToken,
       dateStr,
       dateStr,
-      'views,watchTime,averageViewDuration,impressions,clickThroughRate,likes,comments',
+      'views,estimatedMinutesWatched,averageViewDuration,impressions,clickThroughRate,likes,comments',
       'day,video'
     );
 
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
           channel_id: channelId,
           day: channelRow[0],
           views: channelRow[1] || 0,
-          watch_time_seconds: channelRow[2] || 0,
+          watch_time_seconds: (channelRow[2] || 0) * 60,
           subscribers_gained: channelRow[3] || 0,
           subscribers_lost: channelRow[4] || 0,
           estimated_revenue: channelRow[5] || 0,
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
         video_id: row[1],
         day: row[0],
         views: row[2] || 0,
-        watch_time_seconds: row[3] || 0,
+        watch_time_seconds: (row[3] || 0) * 60,
         avg_view_duration_seconds: row[4] || 0,
         impressions: row[5] || 0,
         click_through_rate: row[6] || 0,
