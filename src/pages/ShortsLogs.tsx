@@ -22,7 +22,7 @@ const ShortsLogs = () => {
   const [stats, setStats] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (user?.email === "yash.vats@agentic.it") {
+    if (user) {
       fetchLogs();
     }
   }, [user]);
@@ -51,15 +51,8 @@ const ShortsLogs = () => {
     }
   };
 
-  if (user?.email !== "yash.vats@agentic.it") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="p-8">
-          <p className="text-muted-foreground">Access denied. This page is only accessible to administrators.</p>
-        </Card>
-      </div>
-    );
-  }
+  // Access control is now enforced by RLS policies on the database
+  // If the user doesn't have permission, the fetchLogs query will return no data
 
   if (loading) {
     return (
