@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,41 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { z } from "zod";
 
-const WEBHOOK_URL = "https://n8n.srv1063704.hstgr.cloud/webhook/3c977b71-2d42-449f-b56b-f4b1aeb2f13f";
+// Client-side validation schema
+const videoUrlSchema = z.string()
+  .trim()
+  .min(1, "Video URL is required")
+  .max(500, { message: "URL is too long" })
+  .url({ message: "Must be a valid URL" })
+  .refine((url) => {
+    try {
+      const parsed = new URL(url);
+      
+      // Only HTTPS allowed
+      if (parsed.protocol !== 'https:') {
+        return false;
+      }
+      
+      // Whitelist YouTube domains
+      const allowedDomains = [
+        'youtube.com',
+        'youtu.be',
+        'm.youtube.com',
+        'www.youtube.com'
+      ];
+      
+      return allowedDomains.some(domain => 
+        parsed.hostname === domain || 
+        parsed.hostname.endsWith('.' + domain)
+      );
+    } catch {
+      return false;
+    }
+  }, { 
+    message: "URL must be from YouTube (https://youtube.com or https://youtu.be)" 
+  });
 
 const KlipperAgent = () => {
   const navigate = useNavigate();
@@ -26,55 +59,35 @@ const KlipperAgent = () => {
       return;
     }
 
-    if (!videoUrl) {
-      toast.error("Please enter a video URL");
+    // Validate video URL
+    const validation = videoUrlSchema.safeParse(videoUrl);
+    if (!validation.success) {
+      toast.error(validation.error.errors[0].message);
       return;
     }
 
     try {
       setIsGenerating(true);
 
-      // Send to webhook
-      const payload = {
-        videoUrl,
-        numberOfShorts: numberOfShorts[0],
-        avgVideoTime: avgVideoTime[0],
-        userId: user.id,
-        userEmail: user.email
-      };
-
-      const webhookResponse = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      // Call edge function instead of direct webhook
+      const { data, error } = await supabase.functions.invoke('generate-klipper-shorts', {
+        body: {
+          videoUrl: validation.data,
+          numberOfShorts: numberOfShorts[0],
+          avgVideoTime: avgVideoTime[0],
+        }
       });
 
-      if (!webhookResponse.ok) {
-        throw new Error("Failed to send to webhook");
-      }
-
-      // Log to database
-      const { error: logError } = await supabase
-        .from("shorts_generation_logs")
-        .insert({
-          user_id: user.id,
-          user_email: user.email || "",
-          video_url: videoUrl,
-          number_of_shorts: numberOfShorts[0],
-          avg_video_time: avgVideoTime[0],
-        });
-
-      if (logError) {
-        console.error("Failed to log generation:", logError);
+      if (error) {
+        throw error;
       }
 
       toast.success("Shorts generation started successfully!");
+      setVideoUrl(""); // Clear the form
       setIsGenerating(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating shorts:", error);
-      toast.error("Failed to start generation. Please try again.");
+      toast.error(error.message || "Failed to start generation. Please try again.");
       setIsGenerating(false);
     }
   };
