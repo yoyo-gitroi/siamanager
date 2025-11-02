@@ -1,25 +1,136 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Video, ArrowLeft } from "lucide-react";
+import { Video, ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const WEBHOOK_URL = "https://n8n.srv1063704.hstgr.cloud/webhook/3c977b71-2d42-449f-b56b-f4b1aeb2f13f";
+const GENERATION_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
+const STORAGE_KEY = "klipper_generation_state";
 
 const KlipperAgent = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [videoUrl, setVideoUrl] = useState("");
   const [numberOfShorts, setNumberOfShorts] = useState([3]);
   const [avgVideoTime, setAvgVideoTime] = useState([45]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(0);
 
-  const handleGenerate = () => {
-    console.log({
-      videoUrl,
-      numberOfShorts: numberOfShorts[0],
-      avgVideoTime: avgVideoTime[0]
-    });
-    // TODO: Implement generation logic
+  // Load generation state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      const { endTime } = JSON.parse(savedState);
+      const remaining = endTime - Date.now();
+      
+      if (remaining > 0) {
+        setIsGenerating(true);
+        setRemainingTime(remaining);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  }, []);
+
+  // Update remaining time every second
+  useEffect(() => {
+    if (!isGenerating) return;
+
+    const interval = setInterval(() => {
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        const { endTime } = JSON.parse(savedState);
+        const remaining = endTime - Date.now();
+        
+        if (remaining <= 0) {
+          setIsGenerating(false);
+          setRemainingTime(0);
+          localStorage.removeItem(STORAGE_KEY);
+          toast.success("Video generation completed!");
+        } else {
+          setRemainingTime(remaining);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
+  const formatTime = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleGenerate = async () => {
+    if (!user) {
+      toast.error("Please sign in to generate shorts");
+      return;
+    }
+
+    if (!videoUrl) {
+      toast.error("Please enter a video URL");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      
+      // Set end time and save to localStorage
+      const endTime = Date.now() + GENERATION_TIME;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ endTime }));
+      setRemainingTime(GENERATION_TIME);
+
+      // Send to webhook
+      const payload = {
+        videoUrl,
+        numberOfShorts: numberOfShorts[0],
+        avgVideoTime: avgVideoTime[0],
+        userId: user.id,
+        userEmail: user.email
+      };
+
+      const webhookResponse = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!webhookResponse.ok) {
+        throw new Error("Failed to send to webhook");
+      }
+
+      // Log to database
+      const { error: logError } = await supabase
+        .from("shorts_generation_logs")
+        .insert({
+          user_id: user.id,
+          user_email: user.email || "",
+          video_url: videoUrl,
+          number_of_shorts: numberOfShorts[0],
+          avg_video_time: avgVideoTime[0],
+        });
+
+      if (logError) {
+        console.error("Failed to log generation:", logError);
+      }
+
+      toast.success("Shorts generation started! This will take 5-10 minutes.");
+    } catch (error) {
+      console.error("Error generating shorts:", error);
+      toast.error("Failed to start generation. Please try again.");
+      setIsGenerating(false);
+      localStorage.removeItem(STORAGE_KEY);
+    }
   };
 
   return (
@@ -122,11 +233,18 @@ const KlipperAgent = () => {
           {/* Generate Button */}
           <Button
             onClick={handleGenerate}
-            disabled={!videoUrl}
+            disabled={!videoUrl || isGenerating}
             size="lg"
             className="w-full h-14 text-base font-semibold"
           >
-            Generate Shorts
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Generating... {formatTime(remainingTime)}
+              </>
+            ) : (
+              "Generate Shorts"
+            )}
           </Button>
         </div>
       </Card>

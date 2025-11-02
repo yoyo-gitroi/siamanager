@@ -436,6 +436,36 @@ export type Database = {
         }
         Relationships: []
       }
+      shorts_generation_logs: {
+        Row: {
+          avg_video_time: number
+          created_at: string
+          id: string
+          number_of_shorts: number
+          user_email: string
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          avg_video_time: number
+          created_at?: string
+          id?: string
+          number_of_shorts: number
+          user_email: string
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          avg_video_time?: number
+          created_at?: string
+          id?: string
+          number_of_shorts?: number
+          user_email?: string
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
       social_accounts: {
         Row: {
           created_at: string | null

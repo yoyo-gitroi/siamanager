@@ -1,7 +1,8 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, PenTool, Send, MessageSquare, Settings, X } from "lucide-react";
+import { Home, BarChart3, PenTool, Send, MessageSquare, Settings, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -18,6 +19,9 @@ const navItems = [
 ];
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+  const { user } = useAuth();
+  const isYashVats = user?.email === "yash.vats@agentic.it";
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -64,6 +68,24 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               <span>{item.label}</span>
             </NavLink>
           ))}
+          
+          {/* Logs - Only visible to Yash Vats */}
+          {isYashVats && (
+            <NavLink
+              to="/shorts-logs"
+              onClick={() => onClose()}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                  "hover:bg-sidebar-accent text-sidebar-foreground",
+                  isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                )
+              }
+            >
+              <FileText className="h-5 w-5" />
+              <span>Logs</span>
+            </NavLink>
+          )}
         </nav>
       </aside>
     </>
