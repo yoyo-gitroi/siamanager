@@ -31,12 +31,9 @@ const App = () => (
           <Route path="/" element={<Layout />}>
             <Route index element={<Overview />} />
             <Route path="analytics" element={<UnifiedAnalytics />} />
-            <Route path="growth" element={<GrowthInsights />} />
-            <Route path="content" element={<Content />} />
-            <Route path="publishing" element={<Publishing />} />
-            <Route path="engagement" element={<Engagement />} />
-            <Route path="youtube-setup" element={<YouTubeSetup />} />
-            <Route path="youtube-data" element={<YouTubeDataView />} />
+            <Route path="create" element={<Content />} />
+            <Route path="post" element={<Publishing />} />
+            <Route path="engage" element={<Engagement />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
