@@ -72,45 +72,60 @@ const contentAgents = [
 
 const Content = () => {
   return (
-    <div className="space-y-8 animate-fade-in max-w-7xl">
-      <div>
-        <h1 className="mb-2">Create</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-8 animate-fade-in">
+      <div className="max-w-3xl">
+        <h1 className="mb-3">Create</h1>
+        <p className="text-muted-foreground text-lg">
           AI-powered content generation tools for all platforms
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
         {contentAgents.map((agent) => {
           const Icon = agent.icon;
           return (
-            <Card key={agent.id} className="p-6 hover:shadow-lg transition-shadow relative">
+            <Card 
+              key={agent.id} 
+              className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            >
               {!agent.available && (
-                <Badge className="absolute top-4 right-4" variant="secondary">
+                <Badge 
+                  className="absolute top-4 right-4 z-10 bg-muted/80 backdrop-blur-sm" 
+                  variant="secondary"
+                >
                   Coming Soon
                 </Badge>
               )}
               
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Icon className="h-6 w-6 text-primary" />
+              <div className="p-6 space-y-5">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <Icon className="h-7 w-7 text-primary" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Content Generation</p>
-                    <h3 className="font-semibold mb-2">{agent.title}</h3>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                      Content Generation
+                    </p>
+                    <h3 className="font-semibold text-lg leading-tight mb-1">
+                      {agent.title}
+                    </h3>
                   </div>
                 </div>
                 
-                <div className="space-y-1">
-                  <p className="text-sm text-foreground">{agent.description}</p>
-                  <p className="text-xs text-muted-foreground">{agent.details}</p>
+                <div className="space-y-2 min-h-[80px]">
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {agent.description}
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {agent.details}
+                  </p>
                 </div>
 
                 <Button 
-                  className="w-full" 
+                  className="w-full mt-4" 
                   variant={agent.available ? "default" : "outline"}
                   disabled={!agent.available}
+                  size="lg"
                 >
                   {agent.available ? "Launch Agent" : "Coming Soon"}
                 </Button>
