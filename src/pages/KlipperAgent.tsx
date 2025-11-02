@@ -11,8 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const WEBHOOK_URL = "https://n8n.srv1063704.hstgr.cloud/webhook/3c977b71-2d42-449f-b56b-f4b1aeb2f13f";
-const GENERATION_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
-const STORAGE_KEY = "klipper_generation_state";
 
 const KlipperAgent = () => {
   const navigate = useNavigate();
@@ -21,53 +19,6 @@ const KlipperAgent = () => {
   const [numberOfShorts, setNumberOfShorts] = useState([3]);
   const [avgVideoTime, setAvgVideoTime] = useState([45]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(0);
-
-  // Load generation state from localStorage on mount
-  useEffect(() => {
-    const savedState = localStorage.getItem(STORAGE_KEY);
-    if (savedState) {
-      const { endTime } = JSON.parse(savedState);
-      const remaining = endTime - Date.now();
-      
-      if (remaining > 0) {
-        setIsGenerating(true);
-        setRemainingTime(remaining);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-  }, []);
-
-  // Update remaining time every second
-  useEffect(() => {
-    if (!isGenerating) return;
-
-    const interval = setInterval(() => {
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      if (savedState) {
-        const { endTime } = JSON.parse(savedState);
-        const remaining = endTime - Date.now();
-        
-        if (remaining <= 0) {
-          setIsGenerating(false);
-          setRemainingTime(0);
-          localStorage.removeItem(STORAGE_KEY);
-          toast.success("Video generation completed!");
-        } else {
-          setRemainingTime(remaining);
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isGenerating]);
-
-  const formatTime = (ms: number) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
 
   const handleGenerate = async () => {
     if (!user) {
@@ -82,11 +33,6 @@ const KlipperAgent = () => {
 
     try {
       setIsGenerating(true);
-      
-      // Set end time and save to localStorage
-      const endTime = Date.now() + GENERATION_TIME;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ endTime }));
-      setRemainingTime(GENERATION_TIME);
 
       // Send to webhook
       const payload = {
@@ -124,12 +70,12 @@ const KlipperAgent = () => {
         console.error("Failed to log generation:", logError);
       }
 
-      toast.success("Shorts generation started! This will take 5-10 minutes.");
+      toast.success("Shorts generation started successfully!");
+      setIsGenerating(false);
     } catch (error) {
       console.error("Error generating shorts:", error);
       toast.error("Failed to start generation. Please try again.");
       setIsGenerating(false);
-      localStorage.removeItem(STORAGE_KEY);
     }
   };
 
@@ -240,7 +186,7 @@ const KlipperAgent = () => {
             {isGenerating ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Generating... {formatTime(remainingTime)}
+                Generating...
               </>
             ) : (
               "Generate Shorts"
