@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Video, FileText, Image, BookOpen, Hash, Wand2, ImagePlay, Bot } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const contentAgents = [
   {
@@ -71,6 +72,15 @@ const contentAgents = [
 ];
 
 const Content = () => {
+  const navigate = useNavigate();
+
+  const handleLaunchAgent = (agentId: string) => {
+    if (agentId === "klipper") {
+      navigate("/klipper-agent");
+    }
+    // Add navigation for other agents when they become available
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="max-w-3xl">
@@ -117,6 +127,7 @@ const Content = () => {
                   variant={agent.available ? "default" : "outline"}
                   disabled={!agent.available}
                   size="lg"
+                  onClick={() => handleLaunchAgent(agent.id)}
                 >
                   Launch Agent
                 </Button>

@@ -16,6 +16,7 @@ import YouTubeSetup from "./pages/YouTubeSetup";
 import YouTubeDataView from "./pages/YouTubeDataView";
 import OAuthCallback from "./pages/OAuthCallbackHandler";
 import NotFound from "./pages/NotFound";
+import KlipperAgent from "./pages/KlipperAgent";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route index element={<Overview />} />
             <Route path="analytics" element={<UnifiedAnalytics />} />
             <Route path="create" element={<Content />} />
+            <Route path="klipper-agent" element={<KlipperAgent />} />
             <Route path="post" element={<Publishing />} />
             <Route path="engage" element={<Engagement />} />
             <Route path="settings" element={<Settings />} />
