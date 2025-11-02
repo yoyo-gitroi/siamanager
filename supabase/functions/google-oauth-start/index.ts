@@ -7,22 +7,29 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get authenticated user by decoding JWT
+    // Get authenticated user with proper JWT verification
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
-    // Decode JWT to extract user_id
-    const jwt = authHeader.replace('Bearer ', '');
-    const payload = JSON.parse(atob(jwt.split('.')[1]));
-    const userId = payload.sub;
+    // Create Supabase client to verify JWT signature
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-    if (!userId) {
+    // Verify JWT signature and expiry
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication failed:', authError);
       throw new Error('Unauthorized - invalid token');
     }
 
-    console.log('Detected user from JWT:', userId);
+    const userId = user.id;
+    console.log('Authenticated user:', userId);
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
     const redirectUri = Deno.env.get('GOOGLE_REDIRECT_URI');
