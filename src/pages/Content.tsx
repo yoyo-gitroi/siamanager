@@ -88,15 +88,6 @@ const Content = () => {
               key={agent.id} 
               className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
             >
-              {!agent.available && (
-                <Badge 
-                  className="absolute top-4 right-4 z-10 bg-muted/80 backdrop-blur-sm" 
-                  variant="secondary"
-                >
-                  Coming Soon
-                </Badge>
-              )}
-              
               <div className="p-6 space-y-5">
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
@@ -127,7 +118,7 @@ const Content = () => {
                   disabled={!agent.available}
                   size="lg"
                 >
-                  {agent.available ? "Launch Agent" : "Coming Soon"}
+                  Launch Agent
                 </Button>
               </div>
             </Card>
