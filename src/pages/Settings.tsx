@@ -122,7 +122,17 @@ const Settings = () => {
       if (error) throw error;
 
       if (data?.url) {
-        window.location.href = data.url;
+        try {
+          // Force top-level navigation to avoid X-Frame-Options/iframe blocking
+          if (window.top) {
+            (window.top as Window).location.href = data.url;
+          } else {
+            window.location.href = data.url;
+          }
+        } catch {
+          // Fallback to opening a new tab
+          window.open(data.url, '_blank', 'noopener,noreferrer');
+        }
       }
     } catch (error: any) {
       console.error('OAuth start error:', error);
