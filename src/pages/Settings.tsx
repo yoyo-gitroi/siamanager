@@ -93,9 +93,7 @@ const Settings = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data, error } = await supabase.functions.invoke('yt-list-channels', {
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
+      const { data, error } = await supabase.functions.invoke('yt-list-channels');
 
       if (error) throw error;
 
@@ -119,9 +117,7 @@ const Settings = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('google-oauth-start', {
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
+      const { data, error } = await supabase.functions.invoke('google-oauth-start');
 
       if (error) throw error;
 
@@ -147,8 +143,7 @@ const Settings = () => {
       if (!session) return;
 
       const { error } = await supabase.functions.invoke('yt-update-channel', {
-        body: { channelId: selectedChannel },
-        headers: { Authorization: `Bearer ${session.access_token}` }
+        body: { channelId: selectedChannel }
       });
 
       if (error) throw error;
@@ -178,8 +173,7 @@ const Settings = () => {
       toast.info('Starting backfill... This may take several minutes.');
 
       const { data, error } = await supabase.functions.invoke('yt-backfill-v2', {
-        body: { fromDate: '2006-01-01' },
-        headers: { Authorization: `Bearer ${session.access_token}` }
+        body: { fromDate: '2006-01-01' }
       });
 
       if (error) throw error;
@@ -221,9 +215,7 @@ const Settings = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('yt-sync-daily-v2', {
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
+      const { data, error } = await supabase.functions.invoke('yt-sync-daily-v2');
 
       if (error) throw error;
 
