@@ -7,21 +7,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get authenticated user with proper JWT verification
+    // Get authenticated user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
-    // Create Supabase client to verify JWT signature
+    // Extract JWT token
+    const jwt = authHeader.replace('Bearer ', '');
+
+    // Verify JWT and get user
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Verify JWT signature and expiry
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(jwt);
     
     if (authError || !user) {
       console.error('Authentication failed:', authError);
