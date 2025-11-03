@@ -22,12 +22,14 @@ function validateVideoUrl(url: string): { valid: boolean; error?: string } {
       return { valid: false, error: 'URL must use HTTPS protocol' };
     }
     
-    // Whitelist YouTube domains
+    // Whitelist YouTube and Google Drive domains
     const allowedDomains = [
       'youtube.com',
       'youtu.be',
       'm.youtube.com',
-      'www.youtube.com'
+      'www.youtube.com',
+      'drive.google.com',
+      'docs.google.com'
     ];
     
     const isAllowed = allowedDomains.some(domain => 
@@ -36,7 +38,7 @@ function validateVideoUrl(url: string): { valid: boolean; error?: string } {
     );
     
     if (!isAllowed) {
-      return { valid: false, error: 'URL must be from YouTube (youtube.com or youtu.be)' };
+      return { valid: false, error: 'URL must be from YouTube or Google Drive' };
     }
     
     // Check URL length

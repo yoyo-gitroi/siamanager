@@ -26,12 +26,14 @@ const videoUrlSchema = z.string()
         return false;
       }
       
-      // Whitelist YouTube domains
+      // Whitelist YouTube and Google Drive domains
       const allowedDomains = [
         'youtube.com',
         'youtu.be',
         'm.youtube.com',
-        'www.youtube.com'
+        'www.youtube.com',
+        'drive.google.com',
+        'docs.google.com'
       ];
       
       return allowedDomains.some(domain => 
@@ -42,7 +44,7 @@ const videoUrlSchema = z.string()
       return false;
     }
   }, { 
-    message: "URL must be from YouTube (https://youtube.com or https://youtu.be)" 
+    message: "URL must be from YouTube or Google Drive" 
   });
 
 const KlipperAgent = () => {
@@ -133,13 +135,13 @@ const KlipperAgent = () => {
             <Input
               id="video-url"
               type="url"
-              placeholder="https://youtube.com/watch?v=..."
+              placeholder="https://youtube.com/watch?v=... or https://drive.google.com/file/d/..."
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
               className="h-12 text-base"
             />
             <p className="text-sm text-muted-foreground">
-              Paste the URL of the long-format video you want to convert
+              Paste the URL of your video from YouTube or Google Drive
             </p>
           </div>
 
