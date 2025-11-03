@@ -3,9 +3,27 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle, Upload, FileText, AlertTriangle, Youtube } from "lucide-react";
+import { CheckCircle, Upload, FileText, Youtube, Loader2, PlayCircle, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+interface YouTubeChannel {
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl?: string;
+}
+
+interface SyncState {
+  last_sync_date: string;
+  last_sync_at: string;
+  status: string;
+  rows_inserted: number;
+  rows_updated: number;
+}
 
 const Settings = () => {
   const { user } = useAuth();
@@ -15,21 +33,82 @@ const Settings = () => {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [channels, setChannels] = useState<YouTubeChannel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<string>("");
+  const [savedChannel, setSavedChannel] = useState<string>("");
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const [dailySyncEnabled, setDailySyncEnabled] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<SyncState | null>(null);
 
   useEffect(() => {
+    const checkConnection = async () => {
+      if (!user) return;
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Check if user has a YouTube connection
+      const { data: connection } = await supabase
+        .from('youtube_connection')
+        .select('channel_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (connection) {
+        setIsAuthorized(true);
+        if (connection.channel_id) {
+          setSavedChannel(connection.channel_id);
+          setSelectedChannel(connection.channel_id);
+          
+          // Load sync logs
+          const { data: syncState } = await supabase
+            .from('youtube_sync_state')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('channel_id', connection.channel_id)
+            .maybeSingle();
+          
+          if (syncState) {
+            setSyncLogs(syncState);
+          }
+        }
+      }
+    };
+
+    checkConnection();
+
     const urlParams = new URLSearchParams(window.location.search);
     const authSuccess = urlParams.get('authorized');
     if (authSuccess === 'true') {
       setIsAuthorized(true);
       toast.success('YouTube account connected successfully!');
       window.history.replaceState({}, '', window.location.pathname);
+      loadChannels();
     }
-    
-    const storedAuth = localStorage.getItem('youtube_authorized');
-    if (storedAuth === 'true') {
-      setIsAuthorized(true);
+  }, [user]);
+
+  const loadChannels = async () => {
+    setChannelsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase.functions.invoke('yt-list-channels', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (error) throw error;
+
+      if (data?.channels) {
+        setChannels(data.channels);
+      }
+    } catch (error: any) {
+      console.error('Failed to load channels:', error);
+      toast.error(error.message || 'Failed to load channels');
+    } finally {
+      setChannelsLoading(false);
     }
-  }, []);
+  };
 
   const handleOAuthStart = async () => {
     setOauthLoading(true);
@@ -46,13 +125,8 @@ const Settings = () => {
 
       if (error) throw error;
 
-      if (data?.authUrl) {
-        const isLocalhost = window.location.hostname === 'localhost';
-        if (isLocalhost) {
-          window.location.href = data.authUrl;
-        } else {
-          window.open(data.authUrl, '_blank', 'width=600,height=700');
-        }
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (error: any) {
       console.error('OAuth start error:', error);
@@ -62,7 +136,37 @@ const Settings = () => {
     }
   };
 
+  const handleSaveChannel = async () => {
+    if (!selectedChannel) {
+      toast.error('Please select a channel first');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase.functions.invoke('yt-update-channel', {
+        body: { channelId: selectedChannel },
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (error) throw error;
+
+      setSavedChannel(selectedChannel);
+      toast.success('Channel saved successfully');
+    } catch (error: any) {
+      console.error('Failed to save channel:', error);
+      toast.error(error.message || 'Failed to save channel');
+    }
+  };
+
   const handleBackfill = async () => {
+    if (!savedChannel) {
+      toast.error('Please save a channel first');
+      return;
+    }
+
     setIsBackfilling(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -71,13 +175,30 @@ const Settings = () => {
         return;
       }
 
-      const { error } = await supabase.functions.invoke('yt-backfill', {
-        body: { fromDate: '2012-01-01' },
+      toast.info('Starting backfill... This may take several minutes.');
+
+      const { data, error } = await supabase.functions.invoke('yt-backfill-v2', {
+        body: { fromDate: '2006-01-01' },
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
 
       if (error) throw error;
-      toast.success('Backfill completed successfully');
+
+      if (data) {
+        toast.success(`Backfill completed! Channel: ${data.channelRows} rows, Videos: ${data.videoRows} rows`);
+        
+        // Reload sync logs
+        const { data: syncState } = await supabase
+          .from('youtube_sync_state')
+          .select('*')
+          .eq('user_id', user?.id)
+          .eq('channel_id', savedChannel)
+          .maybeSingle();
+        
+        if (syncState) {
+          setSyncLogs(syncState);
+        }
+      }
     } catch (error: any) {
       console.error('Backfill error:', error);
       toast.error(error.message || 'Backfill failed');
@@ -87,6 +208,11 @@ const Settings = () => {
   };
 
   const handleDailySync = async () => {
+    if (!savedChannel) {
+      toast.error('Please save a channel first');
+      return;
+    }
+
     setIsSyncing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -95,12 +221,27 @@ const Settings = () => {
         return;
       }
 
-      const { error } = await supabase.functions.invoke('yt-sync-daily', {
+      const { data, error } = await supabase.functions.invoke('yt-sync-daily-v2', {
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
 
       if (error) throw error;
-      toast.success('Daily sync completed successfully');
+
+      if (data) {
+        toast.success(`Daily sync completed! Channel: ${data.channelRows} rows, Videos: ${data.videoRows} rows`);
+        
+        // Reload sync logs
+        const { data: syncState } = await supabase
+          .from('youtube_sync_state')
+          .select('*')
+          .eq('user_id', user?.id)
+          .eq('channel_id', savedChannel)
+          .maybeSingle();
+        
+        if (syncState) {
+          setSyncLogs(syncState);
+        }
+      }
     } catch (error: any) {
       console.error('Daily sync error:', error);
       toast.error(error.message || 'Daily sync failed');
@@ -131,20 +272,21 @@ const Settings = () => {
             <div className="mb-6">
               <h2 className="mb-2 flex items-center gap-2">
                 <Youtube className="h-6 w-6" />
-                YouTube Analytics Setup
+                YouTube Analytics: OAuth, Channel Picker, Backfill + Daily Sync to SQL
               </h2>
               <p className="text-sm text-muted-foreground">
-                Connect your YouTube account to sync analytics data
+                Connect your YouTube account, select a channel, and sync analytics data
               </p>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-4">
+                {/* Step 1: Connect Google */}
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
-                    <h3 className="font-medium">1. Authorize YouTube Account</h3>
+                    <h3 className="font-medium">Step 1: Connect Google (YouTube Analytics)</h3>
                     <p className="text-sm text-muted-foreground">
-                      Connect your Google account to access YouTube Analytics
+                      Authorize with Google to access YouTube Analytics API
                     </p>
                   </div>
                   <Button
@@ -154,7 +296,7 @@ const Settings = () => {
                   >
                     {oauthLoading ? (
                       <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Connecting...
                       </>
                     ) : isAuthorized ? (
@@ -163,66 +305,178 @@ const Settings = () => {
                         Connected
                       </>
                     ) : (
-                      'Connect YouTube'
+                      'Connect Google'
                     )}
                   </Button>
                 </div>
 
+                {/* Step 2: Pick Channel */}
                 {isAuthorized && (
                   <>
+                    <div className="p-4 border rounded-lg space-y-4">
+                      <div>
+                        <h3 className="font-medium mb-2">Step 2: Pick a Channel</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Select which YouTube channel to sync analytics for
+                        </p>
+                      </div>
+
+                      {channels.length === 0 && !channelsLoading && (
+                        <Button 
+                          onClick={loadChannels}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Load My Channels
+                        </Button>
+                      )}
+
+                      {channelsLoading && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading channels...
+                        </div>
+                      )}
+
+                      {channels.length > 0 && (
+                        <>
+                          <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a channel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {channels.map((channel) => (
+                                <SelectItem key={channel.id} value={channel.id}>
+                                  {channel.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {savedChannel && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span>Connected: {channels.find(c => c.id === savedChannel)?.title || savedChannel}</span>
+                            </div>
+                          )}
+
+                          <Button
+                            onClick={handleSaveChannel}
+                            disabled={!selectedChannel || selectedChannel === savedChannel}
+                            size="sm"
+                          >
+                            Save Channel
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Step 3: Backfill */}
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <h3 className="font-medium">2. Backfill Historical Data</h3>
+                        <h3 className="font-medium">Step 3: Run Full Backfill Now</h3>
                         <p className="text-sm text-muted-foreground">
-                          Import analytics data from 2012 to present
+                          Fetch all historical data from 2006 to present
                         </p>
                       </div>
                       <Button
                         onClick={handleBackfill}
-                        disabled={isBackfilling}
+                        disabled={isBackfilling || !savedChannel}
                         variant="outline"
                       >
                         {isBackfilling ? (
                           <>
-                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Running...
                           </>
                         ) : (
-                          'Run Backfill'
+                          <>
+                            <Database className="mr-2 h-4 w-4" />
+                            Run Backfill
+                          </>
                         )}
                       </Button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h3 className="font-medium">3. Manual Daily Sync</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Sync yesterday's analytics data
-                        </p>
+                    {/* Step 4: Daily Sync */}
+                    <div className="p-4 border rounded-lg space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium">Step 4: Enable Daily Sync</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Automatically sync yesterday's data every day
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={dailySyncEnabled}
+                            onCheckedChange={setDailySyncEnabled}
+                            disabled={!savedChannel}
+                          />
+                          <Label className="text-sm">
+                            {dailySyncEnabled ? 'Enabled' : 'Disabled'}
+                          </Label>
+                        </div>
                       </div>
-                      <Button
-                        onClick={handleDailySync}
-                        disabled={isSyncing}
-                        variant="outline"
-                      >
-                        {isSyncing ? (
-                          <>
-                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            Syncing...
-                          </>
-                        ) : (
-                          'Sync Yesterday'
-                        )}
-                      </Button>
+
+                      <div className="pt-2 border-t">
+                        <Button
+                          onClick={handleDailySync}
+                          disabled={isSyncing || !savedChannel}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {isSyncing ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="mr-2 h-4 w-4" />
+                              Manual Sync Yesterday
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Sync Logs */}
+                    {syncLogs && (
+                      <div className="p-4 bg-muted rounded-lg space-y-2">
+                        <h3 className="font-medium flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Sync Logs
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Last Sync:</span>
+                            <p className="font-medium">{new Date(syncLogs.last_sync_at).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Date:</span>
+                            <p className="font-medium">{syncLogs.last_sync_date}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Status:</span>
+                            <p className="font-medium capitalize">{syncLogs.status}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Rows Inserted:</span>
+                            <p className="font-medium">{syncLogs.rows_inserted}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
 
               <div className="mt-6 p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">Next Steps</h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  After completing the setup, you can configure automated daily syncs using cron jobs.
+                <p className="text-sm text-muted-foreground">
+                  After completing the setup above, consider setting up automated daily syncs using Supabase Edge Functions cron jobs. 
+                  The sync will fetch yesterday's data automatically every morning.
                 </p>
               </div>
             </div>

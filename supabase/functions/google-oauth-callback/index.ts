@@ -92,20 +92,19 @@ Deno.serve(async (req) => {
 
     console.log('Channel ID:', channelId);
 
-    // Store tokens in database with user_id
+    // Store tokens in youtube_connection table
     const expiryTs = new Date(Date.now() + tokens.expires_in * 1000);
 
     const { error: dbError } = await supabase
-      .from('google_oauth_tokens')
+      .from('youtube_connection')
       .upsert({
-        provider: 'google',
         user_id: userId,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
-        expiry_ts: expiryTs.toISOString(),
-        scope: tokens.scope,
+        token_expiry: expiryTs.toISOString(),
+        channel_id: channelId, // Store first channel by default
       }, {
-        onConflict: 'provider,user_id'
+        onConflict: 'user_id'
       });
 
     if (dbError) {
@@ -113,13 +112,13 @@ Deno.serve(async (req) => {
       throw new Error('Failed to store tokens');
     }
 
-    console.log('Tokens stored successfully');
+    console.log('Tokens stored successfully with channel:', channelId);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         channelId,
-        message: 'OAuth completed successfully' 
+        message: 'OAuth completed successfully. You can now select your channel.' 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
