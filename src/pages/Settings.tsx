@@ -39,6 +39,10 @@ const Settings = () => {
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [dailySyncEnabled, setDailySyncEnabled] = useState(false);
   const [syncLogs, setSyncLogs] = useState<SyncState | null>(null);
+  
+  // Manual channel ID input states
+  const [manualChannelId, setManualChannelId] = useState("");
+  const [validatingChannel, setValidatingChannel] = useState(false);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -142,8 +146,9 @@ const Settings = () => {
     }
   };
 
-  const handleSaveChannel = async () => {
-    if (!selectedChannel) {
+  const handleSaveChannel = async (channelId?: string) => {
+    const channelToSave = channelId || selectedChannel;
+    if (!channelToSave) {
       toast.error('Please select a channel first');
       return;
     }
@@ -153,16 +158,55 @@ const Settings = () => {
       if (!session) return;
 
       const { error } = await supabase.functions.invoke('yt-update-channel', {
-        body: { channelId: selectedChannel }
+        body: { channelId: channelToSave }
       });
 
       if (error) throw error;
 
-      setSavedChannel(selectedChannel);
+      setSavedChannel(channelToSave);
       toast.success('Channel saved successfully');
     } catch (error: any) {
       console.error('Failed to save channel:', error);
       toast.error(error.message || 'Failed to save channel');
+    }
+  };
+
+  const handleValidateAndAddChannel = async () => {
+    if (!manualChannelId.trim()) {
+      toast.error('Please enter a channel ID');
+      return;
+    }
+
+    setValidatingChannel(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase.functions.invoke('yt-validate-channel', {
+        body: { channelId: manualChannelId.trim() }
+      });
+
+      if (error) throw error;
+
+      if (data?.hasAccess && data?.channel) {
+        // Add to channels list if not already there
+        const channelExists = channels.find(c => c.id === data.channel.id);
+        if (!channelExists) {
+          setChannels([...channels, data.channel]);
+        }
+        
+        // Auto-select and save the validated channel
+        setSelectedChannel(data.channel.id);
+        await handleSaveChannel(data.channel.id);
+        
+        toast.success(`Channel "${data.channel.title}" validated and added!`);
+        setManualChannelId("");
+      }
+    } catch (error: any) {
+      console.error('Failed to validate channel:', error);
+      toast.error(error.message || 'Failed to validate channel access');
+    } finally {
+      setValidatingChannel(false);
     }
   };
 
@@ -363,7 +407,7 @@ const Settings = () => {
                           )}
 
                           <Button
-                            onClick={handleSaveChannel}
+                            onClick={() => handleSaveChannel()}
                             disabled={!selectedChannel || selectedChannel === savedChannel}
                             size="sm"
                           >
@@ -371,6 +415,52 @@ const Settings = () => {
                           </Button>
                         </>
                       )}
+                    </div>
+
+                    {/* Manual Channel ID Section */}
+                    <div className="p-4 border rounded-lg space-y-4">
+                      <div>
+                        <h3 className="font-medium mb-2">Can't find your channel?</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          If you manage a channel but don't own it, enter the Channel ID manually
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="manual-channel-id" className="text-sm">
+                            Channel ID
+                          </Label>
+                          <input
+                            id="manual-channel-id"
+                            type="text"
+                            placeholder="UC..."
+                            value={manualChannelId}
+                            onChange={(e) => setManualChannelId(e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={validatingChannel}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Find your Channel ID in YouTube Studio → Settings → Channel → Advanced settings
+                          </p>
+                        </div>
+
+                        <Button
+                          onClick={handleValidateAndAddChannel}
+                          disabled={validatingChannel || !manualChannelId.trim()}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {validatingChannel ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Validating Access...
+                            </>
+                          ) : (
+                            'Add & Validate Channel'
+                          )}
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Step 3: Backfill */}
