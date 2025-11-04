@@ -119,6 +119,7 @@ const Settings = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('Please log in first');
+        setOauthLoading(false);
         return;
       }
 
@@ -127,16 +128,22 @@ const Settings = () => {
       if (error) throw error;
 
       if (data?.url) {
-        try {
-          // Force top-level navigation to avoid X-Frame-Options/iframe blocking
-          if (window.top) {
-            (window.top as Window).location.href = data.url;
-          } else {
-            window.location.href = data.url;
-          }
-        } catch {
-          // Fallback to opening a new tab
-          window.open(data.url, '_blank', 'noopener,noreferrer');
+        // Open OAuth in popup window to avoid iframe blocking
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        
+        const popup = window.open(
+          data.url,
+          'google-oauth',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no`
+        );
+        
+        if (popup) {
+          toast.info('Complete authentication in the popup window');
+        } else {
+          toast.error('Popup blocked. Please allow popups and try again.');
         }
       }
     } catch (error: any) {
