@@ -206,8 +206,9 @@ Deno.serve(async (req) => {
         );
 
         const rows = data.rows.map((row: any) => ({
+          user_id: userId,
           channel_id: channelId,
-          date: row[columnMap.get('day') as number],
+          day: row[columnMap.get('day') as number],
           views: row[columnMap.get('views') as number] || 0,
           watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
           average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
@@ -221,7 +222,7 @@ Deno.serve(async (req) => {
 
         const { error } = await supabase
           .from('yt_channel_daily')
-          .upsert(rows, { onConflict: 'channel_id,date' });
+          .upsert(rows, { onConflict: 'channel_id,day' });
 
         if (error) {
           console.error('Error upserting channel data:', error);
@@ -268,9 +269,10 @@ Deno.serve(async (req) => {
         );
 
         const rows = data.rows.map((row: any) => ({
+          user_id: userId,
           channel_id: channelId,
           video_id: row[columnMap.get('video') as number],
-          date: row[columnMap.get('day') as number],
+          day: row[columnMap.get('day') as number],
           views: row[columnMap.get('views') as number] || 0,
           watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
           average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
@@ -284,7 +286,7 @@ Deno.serve(async (req) => {
 
         const { error } = await supabase
           .from('yt_video_daily')
-          .upsert(rows, { onConflict: 'channel_id,video_id,date' });
+          .upsert(rows, { onConflict: 'channel_id,video_id,day' });
 
         if (error) {
           console.error('Error upserting video data:', error);
