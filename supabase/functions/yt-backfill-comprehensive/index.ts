@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
         console.log(`Running ${func.label}...`);
         
         const { data, error } = await supabase.functions.invoke(func.name, {
-          body: { fromDate, toDate }
+          body: { fromDate, toDate },
+          headers: { Authorization: authHeader }
         });
 
         if (error) {
