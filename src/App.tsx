@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 import YouTubeSetup from "./pages/YouTubeSetup";
 import YouTubeDataView from "./pages/YouTubeDataView";
 import OAuthCallback from "./pages/OAuthCallbackHandler";
+import OAuthRedirect from "./pages/OAuthRedirect";
 import NotFound from "./pages/NotFound";
 import KlipperAgent from "./pages/KlipperAgent";
 import ShortsLogs from "./pages/ShortsLogs";
@@ -30,6 +31,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/oauth-callback" element={<OAuthCallback />} />
+          <Route path="/oauth-redirect" element={<OAuthRedirect />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Overview />} />
             <Route path="analytics" element={<UnifiedAnalytics />} />

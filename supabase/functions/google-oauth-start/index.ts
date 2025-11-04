@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('scope', scope);
     authUrl.searchParams.set('access_type', 'offline');
-    authUrl.searchParams.set('prompt', 'consent');
+    authUrl.searchParams.set('prompt', 'select_account consent');
+    authUrl.searchParams.set('include_granted_scopes', 'true');
     authUrl.searchParams.set('state', state);
 
     console.log('State stored for user:', userId);

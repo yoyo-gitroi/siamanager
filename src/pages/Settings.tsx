@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle, Upload, FileText, Youtube, Loader2, PlayCircle, Database } from "lucide-react";
+import { CheckCircle, Upload, FileText, Youtube, Loader2, PlayCircle, Database, ExternalLink, Copy, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface YouTubeChannel {
@@ -44,6 +44,8 @@ const Settings = () => {
   const [manualChannelId, setManualChannelId] = useState("");
   const [validatingChannel, setValidatingChannel] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [showPopupHelper, setShowPopupHelper] = useState(false);
+  const [oauthRedirectUrl, setOauthRedirectUrl] = useState('');
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -92,6 +94,39 @@ const Settings = () => {
     }
   }, [user]);
 
+  // Listen for OAuth completion via localStorage
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'yt_oauth_success' && e.newValue === '1') {
+        console.log('OAuth success detected, refreshing connection...');
+        setIsAuthorized(true);
+        loadChannels();
+        localStorage.removeItem('yt_oauth_success');
+        toast.success('Successfully connected to YouTube!');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on mount in case the flag was set in the same window
+    const checkOAuthSuccess = () => {
+      const success = localStorage.getItem('yt_oauth_success');
+      if (success === '1') {
+        console.log('OAuth success flag found on mount');
+        setIsAuthorized(true);
+        loadChannels();
+        localStorage.removeItem('yt_oauth_success');
+        toast.success('Successfully connected to YouTube!');
+      }
+    };
+    
+    checkOAuthSuccess();
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   const loadChannels = async () => {
     setChannelsLoading(true);
     try {
@@ -128,22 +163,28 @@ const Settings = () => {
       if (error) throw error;
 
       if (data?.url) {
-        // Open OAuth in popup window to avoid iframe blocking
+        // Use our intermediate redirect page to avoid iframe blocking
+        const redirectUrl = `${window.location.origin}/oauth-redirect?u=${encodeURIComponent(data.url)}`;
+        setOauthRedirectUrl(redirectUrl);
+        
+        // Open OAuth in popup window
         const width = 600;
         const height = 700;
         const left = window.screen.width / 2 - width / 2;
         const top = window.screen.height / 2 - height / 2;
         
         const popup = window.open(
-          data.url,
+          redirectUrl,
           'google-oauth',
           `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no`
         );
         
         if (popup) {
           toast.info('Complete authentication in the popup window');
+          setShowPopupHelper(false);
         } else {
           toast.error('Popup blocked. Please allow popups and try again.');
+          setShowPopupHelper(true);
         }
       }
     } catch (error: any) {
@@ -400,19 +441,52 @@ const Settings = () => {
                       </Button>
                     </div>
                   ) : (
-                    <Button
-                      onClick={handleOAuthStart}
-                      disabled={oauthLoading}
-                    >
-                      {oauthLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Connecting...
-                        </>
-                      ) : (
-                        'Connect Google'
+                    <div className="flex flex-col gap-3">
+                      <Button
+                        onClick={handleOAuthStart}
+                        disabled={oauthLoading}
+                      >
+                        {oauthLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          'Connect Google'
+                        )}
+                      </Button>
+                      
+                      {showPopupHelper && oauthRedirectUrl && (
+                        <Card className="border-amber-500/50 bg-amber-500/5 p-4">
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Popup blocked? Try these options:
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(oauthRedirectUrl, '_blank')}
+                              className="w-full"
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Open in New Tab
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(oauthRedirectUrl);
+                                toast.success('Link copied to clipboard');
+                              }}
+                              className="w-full"
+                            >
+                              <Copy className="mr-2 h-4 w-4" />
+                              Copy Link
+                            </Button>
+                          </div>
+                        </Card>
                       )}
-                    </Button>
+                    </div>
                   )}
                 </div>
 
