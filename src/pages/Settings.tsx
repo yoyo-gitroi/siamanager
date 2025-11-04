@@ -43,6 +43,7 @@ const Settings = () => {
   // Manual channel ID input states
   const [manualChannelId, setManualChannelId] = useState("");
   const [validatingChannel, setValidatingChannel] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -210,6 +211,40 @@ const Settings = () => {
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!user) return;
+    
+    if (!confirm('Are you sure you want to disconnect? This will remove your YouTube connection and you will need to reconnect.')) {
+      return;
+    }
+    
+    setIsDisconnecting(true);
+    try {
+      const { error } = await supabase
+        .from('youtube_connection')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      // Reset all state
+      setIsAuthorized(false);
+      setChannels([]);
+      setSelectedChannel("");
+      setSavedChannel("");
+      setSyncLogs(null);
+      setDailySyncEnabled(false);
+      setManualChannelId("");
+      
+      toast.success('YouTube account disconnected successfully');
+    } catch (error: any) {
+      console.error('Failed to disconnect:', error);
+      toast.error(error.message || 'Failed to disconnect');
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   const handleBackfill = async () => {
     if (!savedChannel) {
       toast.error('Please save a channel first');
@@ -335,25 +370,43 @@ const Settings = () => {
                       Authorize with Google to access YouTube Analytics API
                     </p>
                   </div>
-                  <Button
-                    onClick={handleOAuthStart}
-                    disabled={oauthLoading || isAuthorized}
-                    variant={isAuthorized ? "outline" : "default"}
-                  >
-                    {oauthLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : isAuthorized ? (
-                      <>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Connected
-                      </>
-                    ) : (
-                      'Connect Google'
-                    )}
-                  </Button>
+                  {isAuthorized ? (
+                    <div className="flex flex-col items-end gap-3">
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="font-medium">Connected</span>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleDisconnect}
+                        disabled={isDisconnecting}
+                      >
+                        {isDisconnecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Disconnecting...
+                          </>
+                        ) : (
+                          'Disconnect & Use Different Account'
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleOAuthStart}
+                      disabled={oauthLoading}
+                    >
+                      {oauthLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        'Connect Google'
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 {/* Step 2: Pick Channel */}
