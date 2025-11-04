@@ -335,23 +335,40 @@ const Settings = () => {
         return;
       }
 
-      toast.info('Starting backfill... This may take several minutes.');
+      toast.info('Starting comprehensive backfill... This will fetch all data types (channel, videos, demographics, geography, traffic, devices, retention, revenue, playlists, search terms, metadata). This may take 10-15 minutes.');
 
-      const { data, error } = await supabase.functions.invoke('yt-backfill-v2', {
+      const { data, error } = await supabase.functions.invoke('yt-backfill-comprehensive', {
         body: { fromDate: '2015-01-01' }
       });
 
       if (error) throw error;
 
       if (data) {
-        let message = `Backfill completed! Channel: ${data.channelRows} rows, Videos: ${data.videoRows} rows`;
-        if (data.salvagedChunks?.length > 0) {
-          message += ` (${data.salvagedChunks.length} chunks salvaged with minimal metrics)`;
+        const { summary, results } = data;
+        
+        // Build detailed message
+        let message = `Comprehensive backfill completed!\n`;
+        message += `✅ ${summary.completed} of ${summary.total} data types succeeded\n`;
+        
+        if (results.completed?.length > 0) {
+          message += `\nCompleted:\n`;
+          results.completed.forEach((item: any) => {
+            message += `  • ${item.function}\n`;
+          });
         }
-        if (data.failedChunks?.length > 0) {
-          message += ` ⚠️ ${data.failedChunks.length} chunks failed`;
+        
+        if (results.failed?.length > 0) {
+          message += `\n⚠️ Failed:\n`;
+          results.failed.forEach((item: any) => {
+            message += `  • ${item.function}: ${item.error}\n`;
+          });
         }
-        toast.success(message);
+        
+        if (summary.failed === 0) {
+          toast.success(message);
+        } else {
+          toast.warning(message);
+        }
         
         // Reload sync logs
         const { data: syncState } = await supabase
@@ -663,12 +680,12 @@ const Settings = () => {
 
                       <div className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
-                          <h3 className="font-medium">Step 3b: Run Full Backfill</h3>
+                          <h3 className="font-medium">Step 3b: Run Comprehensive Backfill</h3>
                           <p className="text-sm text-muted-foreground">
-                            Fetch all historical data from 2015 to present (YouTube Analytics data starts from 2015)
+                            Fetch ALL data types from 2015 to present: channel daily, video daily, demographics, geography, traffic sources, devices, audience retention, revenue, playlists, search terms, and video metadata
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Note: Video-level reports do not include subscriber metrics per YouTube API design
+                            ⏱️ This will take 10-15 minutes. Results will show which data types succeeded/failed.
                           </p>
                         </div>
                         <Button
