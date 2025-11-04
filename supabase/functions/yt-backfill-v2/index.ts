@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
         startDate: chunk.start,
         endDate: chunk.end,
         metrics: videoMetrics,
-        dimensions: 'video,day'
+        dimensions: 'video'
       };
 
       try {
@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
           chunk.start,
           chunk.end,
           videoMetrics,
-          'video,day',
+          'video',
           minimalMetrics
         );
 
@@ -368,7 +368,7 @@ Deno.serve(async (req) => {
             user_id: userId,
             channel_id: channelId,
             video_id: row[columnMap.get('video') as number],
-            day: row[columnMap.get('day') as number],
+            day: chunk.end, // Use chunk end date for aggregated video data
             views: row[columnMap.get('views') as number] || 0,
             watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
             likes: row[columnMap.get('likes') as number] || 0,

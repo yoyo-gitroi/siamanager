@@ -335,36 +335,126 @@ const Settings = () => {
         return;
       }
 
-      toast.info('Starting comprehensive backfill... This will fetch all data types (channel, videos, demographics, geography, traffic, devices, retention, revenue, playlists, search terms, metadata). This may take 10-15 minutes.');
+      toast.info('Starting comprehensive backfill... This will fetch all data types. This may take 10-15 minutes.');
 
-      const { data, error } = await supabase.functions.invoke('yt-backfill-comprehensive', {
-        body: { fromDate: '2015-01-01' }
-      });
+      // Try comprehensive backfill first
+      try {
+        const { data, error } = await supabase.functions.invoke('yt-backfill-comprehensive', {
+          body: { fromDate: '2015-01-01' }
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data) {
-        const { summary, results } = data;
+        if (data) {
+          const { summary, results } = data;
+          
+          // Build detailed message
+          let message = `Comprehensive backfill completed!\n✅ ${summary.completed} of ${summary.total} data types succeeded\n`;
+          
+          if (results.completed?.length > 0) {
+            message += `\nCompleted:\n`;
+            results.completed.forEach((item: any) => {
+              message += `  • ${item.function}\n`;
+            });
+          }
+          
+          if (results.failed?.length > 0) {
+            message += `\n⚠️ Failed:\n`;
+            results.failed.forEach((item: any) => {
+              message += `  • ${item.function}: ${item.error}\n`;
+            });
+          }
+          
+          if (summary.failed === 0) {
+            toast.success(message);
+          } else {
+            toast.warning(message);
+          }
+          
+          // Reload sync logs
+          const { data: syncState } = await supabase
+            .from('youtube_sync_state')
+            .select('*')
+            .eq('user_id', user?.id)
+            .eq('channel_id', savedChannel)
+            .maybeSingle();
+          
+          if (syncState) {
+            setSyncLogs(syncState);
+          }
+        }
+      } catch (comprehensiveError: any) {
+        // If comprehensive fails (CORS, timeout, etc.), fall back to sequential calls
+        console.log('Comprehensive backfill failed, using fallback sequential approach:', comprehensiveError);
+        toast.info('Using fallback mode: running each data type sequentially...');
         
-        // Build detailed message
-        let message = `Comprehensive backfill completed!\n`;
-        message += `✅ ${summary.completed} of ${summary.total} data types succeeded\n`;
+        const functions = [
+          { name: 'yt-backfill-v2', label: 'Channel & Video Daily Metrics' },
+          { name: 'yt-fetch-revenue', label: 'Revenue Data' },
+          { name: 'yt-fetch-demographics', label: 'Demographics' },
+          { name: 'yt-fetch-geography', label: 'Geography' },
+          { name: 'yt-fetch-traffic', label: 'Traffic Sources' },
+          { name: 'yt-fetch-devices', label: 'Device Stats' },
+          { name: 'yt-fetch-retention', label: 'Audience Retention' },
+          { name: 'yt-fetch-playlists', label: 'Playlists' },
+          { name: 'yt-fetch-search-terms', label: 'Search Terms' },
+          { name: 'yt-fetch-video-metadata', label: 'Video Metadata' },
+        ];
+
+        const completed: string[] = [];
+        const failed: Array<{ label: string; error: string }> = [];
+        const skipped: string[] = [];
+
+        for (const func of functions) {
+          try {
+            toast.loading(`Running ${func.label}...`);
+            
+            const { data, error } = await supabase.functions.invoke(func.name, {
+              body: { fromDate: '2015-01-01' }
+            });
+
+            if (error) {
+              // Check if it's a revenue authorization error
+              if (func.name === 'yt-fetch-revenue' && error.message?.includes('401')) {
+                skipped.push('Revenue Data (missing monetization OAuth scope)');
+              } else {
+                failed.push({ label: func.label, error: error.message });
+              }
+            } else {
+              completed.push(func.label);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (funcError: any) {
+            const errorMsg = funcError.message || String(funcError);
+            if (func.name === 'yt-fetch-revenue' && errorMsg.includes('401')) {
+              skipped.push('Revenue Data (missing monetization OAuth scope)');
+            } else {
+              failed.push({ label: func.label, error: errorMsg });
+            }
+          }
+        }
+
+        toast.dismiss();
         
-        if (results.completed?.length > 0) {
-          message += `\nCompleted:\n`;
-          results.completed.forEach((item: any) => {
-            message += `  • ${item.function}\n`;
-          });
+        // Build summary
+        let message = `Backfill completed!\n✅ ${completed.length} succeeded`;
+        if (skipped.length > 0) message += `\n⚠️ ${skipped.length} skipped`;
+        if (failed.length > 0) message += `\n❌ ${failed.length} failed`;
+        
+        if (completed.length > 0) {
+          message += `\n\nCompleted:\n${completed.map(l => `  • ${l}`).join('\n')}`;
         }
         
-        if (results.failed?.length > 0) {
-          message += `\n⚠️ Failed:\n`;
-          results.failed.forEach((item: any) => {
-            message += `  • ${item.function}: ${item.error}\n`;
-          });
+        if (skipped.length > 0) {
+          message += `\n\nSkipped:\n${skipped.map(l => `  • ${l}`).join('\n')}`;
         }
         
-        if (summary.failed === 0) {
+        if (failed.length > 0) {
+          message += `\n\nFailed:\n${failed.map(f => `  • ${f.label}: ${f.error}`).join('\n')}`;
+        }
+        
+        if (failed.length === 0) {
           toast.success(message);
         } else {
           toast.warning(message);
@@ -686,6 +776,9 @@ const Settings = () => {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
                             ⏱️ This will take 10-15 minutes. Results will show which data types succeeded/failed.
+                          </p>
+                          <p className="text-xs text-yellow-600 mt-2">
+                            💡 Revenue tracking requires monetization access. If skipped, disconnect and reconnect your account to enable it.
                           </p>
                         </div>
                         <Button
