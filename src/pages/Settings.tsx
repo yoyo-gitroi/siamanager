@@ -310,7 +310,7 @@ const Settings = () => {
       toast.info('Starting backfill... This may take several minutes.');
 
       const { data, error } = await supabase.functions.invoke('yt-backfill-v2', {
-        body: { fromDate: '2006-01-01' }
+        body: { fromDate: '2015-01-01' }  // YouTube Analytics data starts from 2015
       });
 
       if (error) throw error;

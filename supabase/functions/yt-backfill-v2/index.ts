@@ -87,12 +87,15 @@ async function queryYouTubeAnalytics(
   url.searchParams.set('metrics', metrics);
   url.searchParams.set('dimensions', dimensions);
 
+  console.log(`Querying YouTube Analytics: ${startDate} to ${endDate}, dimensions: ${dimensions}`);
+
   const response = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   if (!response.ok) {
     const error = await response.text();
+    console.error(`YouTube API error for ${startDate}-${endDate}:`, error);
     throw new Error(`Analytics API error: ${error}`);
   }
 
@@ -164,10 +167,15 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const { fromDate = '2006-01-01', toDate } = await req.json();
+    const { fromDate, toDate } = await req.json();
+    
+    // YouTube Analytics data is only available from 2015 onwards
+    const minDate = '2015-01-01';
+    const requestedFromDate = fromDate || minDate;
+    const actualFromDate = requestedFromDate < minDate ? minDate : requestedFromDate;
     const endDate = toDate || new Date().toISOString().split('T')[0];
 
-    console.log(`Starting backfill for user ${userId} from ${fromDate} to ${endDate}`);
+    console.log(`Starting backfill for user ${userId} from ${actualFromDate} to ${endDate}`);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -177,7 +185,7 @@ Deno.serve(async (req) => {
     const { token: accessToken, channelId } = await getValidToken(supabase, userId);
     
     const metrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,shares,subscribersGained,subscribersLost';
-    const chunks = getMonthChunks(fromDate, endDate);
+    const chunks = getMonthChunks(actualFromDate, endDate);
     
     let totalChannelRows = 0;
     let totalVideoRows = 0;
