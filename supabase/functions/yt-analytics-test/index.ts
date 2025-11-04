@@ -158,20 +158,31 @@ Deno.serve(async (req) => {
 
     // Set defaults based on mode
     if (mode === 'channel_monthly') {
-      // For monthly dimension:
-      // - start must be first day of month
-      // - end must be last day of a COMPLETED month (last day of previous month relative to "today")
-      const lastCompletedMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // eom of previous month
-
-      const requestedEndBase = toDate ? new Date(toDate) : today;
-      const requestedEndMonthEnd = new Date(requestedEndBase.getFullYear(), requestedEndBase.getMonth() + 1, 0);
-      const finalEnd = requestedEndMonthEnd > lastCompletedMonthEnd ? lastCompletedMonthEnd : requestedEndMonthEnd;
-
-      const startBase = fromDate ? new Date(fromDate) : new Date('2015-01-01');
-      const startMonthStart = new Date(startBase.getFullYear(), startBase.getMonth(), 1);
-
-      actualFromDate = startMonthStart.toISOString().split('T')[0];
-      actualToDate = finalEnd.toISOString().split('T')[0];
+      // Calculate last completed month (previous month) to avoid timezone issues
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth(); // 0-indexed (0 = January, 10 = November)
+      
+      let lastCompletedYear = currentYear;
+      let lastCompletedMonth = currentMonth - 1;
+      if (lastCompletedMonth < 0) {
+        lastCompletedMonth = 11;
+        lastCompletedYear -= 1;
+      }
+      
+      // Get last day of previous month
+      const lastDayOfPrevMonth = new Date(lastCompletedYear, lastCompletedMonth + 1, 0).getDate();
+      const lastCompletedMonthEndStr = `${lastCompletedYear}-${String(lastCompletedMonth + 1).padStart(2, '0')}-${String(lastDayOfPrevMonth).padStart(2, '0')}`;
+      
+      console.log(`Today: ${today.toISOString().split('T')[0]}, Last completed month end: ${lastCompletedMonthEndStr}`);
+      
+      actualFromDate = fromDate || '2015-01-01';
+      actualToDate = toDate || lastCompletedMonthEndStr;
+      
+      // Cap toDate at last completed month if user provided a future date
+      if (toDate && toDate > lastCompletedMonthEndStr) {
+        console.warn(`Requested toDate ${toDate} is beyond last completed month, capping at ${lastCompletedMonthEndStr}`);
+        actualToDate = lastCompletedMonthEndStr;
+      }
 
       metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,subscribersGained,subscribersLost';
       dimensions = dimensions || 'month';
