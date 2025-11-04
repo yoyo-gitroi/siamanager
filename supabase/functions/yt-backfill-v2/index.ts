@@ -89,17 +89,37 @@ async function queryYouTubeAnalytics(
 
   console.log(`Querying YouTube Analytics: ${startDate} to ${endDate}, dimensions: ${dimensions}`);
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  let lastErrText = '';
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error(`YouTube API error for ${startDate}-${endDate}:`, error);
-    throw new Error(`Analytics API error: ${error}`);
+    if (response.ok) {
+      return await response.json();
+    }
+
+    const errText = await response.text();
+    lastErrText = errText;
+    let retryable = false;
+    try {
+      const parsed = JSON.parse(errText);
+      const reason = parsed?.error?.errors?.[0]?.reason || parsed?.error?.status;
+      retryable = response.status >= 500 || reason === 'internalError' || reason === 'backendError';
+    } catch (_) {
+      retryable = response.status >= 500;
+    }
+
+    console.warn(`YouTube API error (attempt ${attempt}/4) for ${startDate}-${endDate}:`, errText);
+    if (!retryable || attempt === 4) {
+      throw new Error(`Analytics API error: ${errText}`);
+    }
+    // Exponential backoff
+    await new Promise((r) => setTimeout(r, attempt * 700));
   }
 
-  return await response.json();
+  // Should never reach here
+  throw new Error(`Analytics API error: ${lastErrText || 'Unknown error'}`);
 }
 
 function getMonthChunks(fromDate: string, toDate: string): Array<{start: string, end: string}> {
@@ -198,59 +218,63 @@ Deno.serve(async (req) => {
         startDate: chunk.start,
         endDate: chunk.end,
         metrics,
-        dimensions: 'date'
+        dimensions: 'day'
       };
 
-      const data = await queryYouTubeAnalytics(
-        accessToken,
-        channelId,
-        chunk.start,
-        chunk.end,
-        metrics,
-        'day'
-      );
-
-      // Archive raw response
-      await supabase.from('youtube_raw_archive').insert({
-        user_id: userId,
-        channel_id: channelId,
-        report_type: 'daily_channel',
-        request_json: requestData,
-        response_json: data,
-      });
-
-      if (data.rows && data.rows.length > 0) {
-        const columnMap = new Map(
-          data.columnHeaders.map((h: any, i: number) => [h.name, i])
+      try {
+        const data = await queryYouTubeAnalytics(
+          accessToken,
+          channelId,
+          chunk.start,
+          chunk.end,
+          metrics,
+          'day'
         );
 
-        const rows = data.rows.map((row: any) => ({
+        // Archive raw response
+        await supabase.from('youtube_raw_archive').insert({
           user_id: userId,
           channel_id: channelId,
-          day: row[columnMap.get('day') as number],
-          views: row[columnMap.get('views') as number] || 0,
-          watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-          average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-          average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
-          likes: row[columnMap.get('likes') as number] || 0,
-          comments: row[columnMap.get('comments') as number] || 0,
-          shares: row[columnMap.get('shares') as number] || 0,
-          subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
-          subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
-        }));
+          report_type: 'daily_channel',
+          request_json: requestData,
+          response_json: data,
+        });
 
-        const { error } = await supabase
-          .from('yt_channel_daily')
-          .upsert(rows, { onConflict: 'channel_id,day' });
+        if (data.rows && data.rows.length > 0) {
+          const columnMap = new Map(
+            data.columnHeaders.map((h: any, i: number) => [h.name, i])
+          );
 
-        if (error) {
-          console.error('Error upserting channel data:', error);
-        } else {
-          totalChannelRows += rows.length;
+          const rows = data.rows.map((row: any) => ({
+            user_id: userId,
+            channel_id: channelId,
+            day: row[columnMap.get('day') as number],
+            views: row[columnMap.get('views') as number] || 0,
+            watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
+            average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
+            average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
+            likes: row[columnMap.get('likes') as number] || 0,
+            comments: row[columnMap.get('comments') as number] || 0,
+            shares: row[columnMap.get('shares') as number] || 0,
+            subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
+            subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
+          }));
+
+          const { error } = await supabase
+            .from('yt_channel_daily')
+            .upsert(rows, { onConflict: 'channel_id,day' });
+
+          if (error) {
+            console.error('Error upserting channel data:', error);
+          } else {
+            totalChannelRows += rows.length;
+          }
         }
+      } catch (err) {
+        console.error('Channel chunk failed', { start: chunk.start, end: chunk.end }, err);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
     // Process video-level data
@@ -261,60 +285,64 @@ Deno.serve(async (req) => {
         startDate: chunk.start,
         endDate: chunk.end,
         metrics,
-        dimensions: 'video,date'
+        dimensions: 'video,day'
       };
 
-      const data = await queryYouTubeAnalytics(
-        accessToken,
-        channelId,
-        chunk.start,
-        chunk.end,
-        metrics,
-        'video,day'
-      );
-
-      // Archive raw response
-      await supabase.from('youtube_raw_archive').insert({
-        user_id: userId,
-        channel_id: channelId,
-        report_type: 'daily_video',
-        request_json: requestData,
-        response_json: data,
-      });
-
-      if (data.rows && data.rows.length > 0) {
-        const columnMap = new Map(
-          data.columnHeaders.map((h: any, i: number) => [h.name, i])
+      try {
+        const data = await queryYouTubeAnalytics(
+          accessToken,
+          channelId,
+          chunk.start,
+          chunk.end,
+          metrics,
+          'video,day'
         );
 
-        const rows = data.rows.map((row: any) => ({
+        // Archive raw response
+        await supabase.from('youtube_raw_archive').insert({
           user_id: userId,
           channel_id: channelId,
-          video_id: row[columnMap.get('video') as number],
-          day: row[columnMap.get('day') as number],
-          views: row[columnMap.get('views') as number] || 0,
-          watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-          average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-          average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
-          likes: row[columnMap.get('likes') as number] || 0,
-          comments: row[columnMap.get('comments') as number] || 0,
-          shares: row[columnMap.get('shares') as number] || 0,
-          subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
-          subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
-        }));
+          report_type: 'daily_video',
+          request_json: requestData,
+          response_json: data,
+        });
 
-        const { error } = await supabase
-          .from('yt_video_daily')
-          .upsert(rows, { onConflict: 'channel_id,video_id,day' });
+        if (data.rows && data.rows.length > 0) {
+          const columnMap = new Map(
+            data.columnHeaders.map((h: any, i: number) => [h.name, i])
+          );
 
-        if (error) {
-          console.error('Error upserting video data:', error);
-        } else {
-          totalVideoRows += rows.length;
+          const rows = data.rows.map((row: any) => ({
+            user_id: userId,
+            channel_id: channelId,
+            video_id: row[columnMap.get('video') as number],
+            day: row[columnMap.get('day') as number],
+            views: row[columnMap.get('views') as number] || 0,
+            watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
+            average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
+            average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
+            likes: row[columnMap.get('likes') as number] || 0,
+            comments: row[columnMap.get('comments') as number] || 0,
+            shares: row[columnMap.get('shares') as number] || 0,
+            subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
+            subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
+          }));
+
+          const { error } = await supabase
+            .from('yt_video_daily')
+            .upsert(rows, { onConflict: 'channel_id,video_id,day' });
+
+          if (error) {
+            console.error('Error upserting video data:', error);
+          } else {
+            totalVideoRows += rows.length;
+          }
         }
+      } catch (err) {
+        console.error('Video chunk failed', { start: chunk.start, end: chunk.end }, err);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
     // Update sync state
