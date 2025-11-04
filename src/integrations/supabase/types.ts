@@ -703,6 +703,42 @@ export type Database = {
         }
         Relationships: []
       }
+      yt_audience_retention: {
+        Row: {
+          audience_watch_ratio: number | null
+          channel_id: string
+          created_at: string | null
+          day: string
+          elapsed_video_time_ratio: number | null
+          id: string
+          subscribed_status: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          audience_watch_ratio?: number | null
+          channel_id: string
+          created_at?: string | null
+          day: string
+          elapsed_video_time_ratio?: number | null
+          id?: string
+          subscribed_status?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          audience_watch_ratio?: number | null
+          channel_id?: string
+          created_at?: string | null
+          day?: string
+          elapsed_video_time_ratio?: number | null
+          id?: string
+          subscribed_status?: string | null
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
       yt_channel_daily: {
         Row: {
           channel_id: string
@@ -734,6 +770,216 @@ export type Database = {
           subscribers_gained?: number | null
           subscribers_lost?: number | null
           user_id?: string | null
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      yt_demographics: {
+        Row: {
+          age_group: string | null
+          channel_id: string
+          created_at: string | null
+          day: string
+          gender: string | null
+          id: string
+          user_id: string
+          viewer_percentage: number | null
+        }
+        Insert: {
+          age_group?: string | null
+          channel_id: string
+          created_at?: string | null
+          day: string
+          gender?: string | null
+          id?: string
+          user_id: string
+          viewer_percentage?: number | null
+        }
+        Update: {
+          age_group?: string | null
+          channel_id?: string
+          created_at?: string | null
+          day?: string
+          gender?: string | null
+          id?: string
+          user_id?: string
+          viewer_percentage?: number | null
+        }
+        Relationships: []
+      }
+      yt_device_stats: {
+        Row: {
+          channel_id: string
+          created_at: string | null
+          day: string
+          device_type: string | null
+          id: string
+          operating_system: string | null
+          user_id: string
+          views: number | null
+          watch_time_seconds: number | null
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string | null
+          day: string
+          device_type?: string | null
+          id?: string
+          operating_system?: string | null
+          user_id: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string | null
+          day?: string
+          device_type?: string | null
+          id?: string
+          operating_system?: string | null
+          user_id?: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      yt_geography: {
+        Row: {
+          channel_id: string
+          country: string | null
+          created_at: string | null
+          day: string
+          id: string
+          province: string | null
+          user_id: string
+          views: number | null
+          watch_time_seconds: number | null
+        }
+        Insert: {
+          channel_id: string
+          country?: string | null
+          created_at?: string | null
+          day: string
+          id?: string
+          province?: string | null
+          user_id: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Update: {
+          channel_id?: string
+          country?: string | null
+          created_at?: string | null
+          day?: string
+          id?: string
+          province?: string | null
+          user_id?: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      yt_playlist_analytics: {
+        Row: {
+          avg_time_in_playlist_seconds: number | null
+          channel_id: string
+          created_at: string | null
+          day: string
+          id: string
+          playlist_id: string | null
+          user_id: string
+          views: number | null
+          watch_time_seconds: number | null
+        }
+        Insert: {
+          avg_time_in_playlist_seconds?: number | null
+          channel_id: string
+          created_at?: string | null
+          day: string
+          id?: string
+          playlist_id?: string | null
+          user_id: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Update: {
+          avg_time_in_playlist_seconds?: number | null
+          channel_id?: string
+          created_at?: string | null
+          day?: string
+          id?: string
+          playlist_id?: string | null
+          user_id?: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      yt_revenue_daily: {
+        Row: {
+          ad_impressions: number | null
+          channel_id: string
+          cpm: number | null
+          created_at: string | null
+          day: string
+          estimated_revenue: number | null
+          id: string
+          playback_based_cpm: number | null
+          user_id: string
+        }
+        Insert: {
+          ad_impressions?: number | null
+          channel_id: string
+          cpm?: number | null
+          created_at?: string | null
+          day: string
+          estimated_revenue?: number | null
+          id?: string
+          playback_based_cpm?: number | null
+          user_id: string
+        }
+        Update: {
+          ad_impressions?: number | null
+          channel_id?: string
+          cpm?: number | null
+          created_at?: string | null
+          day?: string
+          estimated_revenue?: number | null
+          id?: string
+          playback_based_cpm?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      yt_search_terms: {
+        Row: {
+          channel_id: string
+          created_at: string | null
+          day: string
+          id: string
+          search_term: string | null
+          user_id: string
+          views: number | null
+          watch_time_seconds: number | null
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string | null
+          day: string
+          id?: string
+          search_term?: string | null
+          user_id: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string | null
+          day?: string
+          id?: string
+          search_term?: string | null
+          user_id?: string
           views?: number | null
           watch_time_seconds?: number | null
         }
@@ -784,6 +1030,42 @@ export type Database = {
         }
         Relationships: []
       }
+      yt_traffic_sources: {
+        Row: {
+          channel_id: string
+          created_at: string | null
+          day: string
+          id: string
+          source_detail: string | null
+          source_type: string | null
+          user_id: string
+          views: number | null
+          watch_time_seconds: number | null
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string | null
+          day: string
+          id?: string
+          source_detail?: string | null
+          source_type?: string | null
+          user_id: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string | null
+          day?: string
+          id?: string
+          source_detail?: string | null
+          source_type?: string | null
+          user_id?: string
+          views?: number | null
+          watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
       yt_video_daily: {
         Row: {
           avg_view_duration_seconds: number | null
@@ -826,6 +1108,54 @@ export type Database = {
           video_id?: string
           views?: number | null
           watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      yt_video_metadata: {
+        Row: {
+          category_id: string | null
+          channel_id: string
+          created_at: string | null
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          published_at: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          channel_id: string
+          created_at?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          published_at?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          category_id?: string | null
+          channel_id?: string
+          created_at?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          published_at?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
+          video_id?: string
         }
         Relationships: []
       }
