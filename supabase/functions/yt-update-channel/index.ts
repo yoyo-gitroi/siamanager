@@ -8,21 +8,36 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    console.log('Environment check:', { 
+      hasUrl: !!supabaseUrl, 
+      hasAnonKey: !!supabaseAnonKey 
+    });
+
     const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl ?? '',
+      supabaseAnonKey ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     
+    console.log('Auth result:', { hasUser: !!user, authError: authError?.message });
+    
     if (authError || !user) {
+      console.error('Authentication failed:', authError);
       throw new Error('Unauthorized');
     }
+    
+    console.log('Authenticated user:', user.id);
 
     const { channelId } = await req.json();
 
