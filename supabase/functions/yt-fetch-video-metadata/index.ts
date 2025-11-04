@@ -181,10 +181,7 @@ Deno.serve(async (req) => {
           duration_seconds: parseDuration(video.contentDetails.duration),
           thumbnail_url: video.snippet.thumbnails?.high?.url || video.snippet.thumbnails?.default?.url,
           tags: video.snippet.tags || [],
-          category_id: video.snippet.categoryId,
-          view_count: parseInt(video.statistics?.viewCount || '0'),
-          like_count: parseInt(video.statistics?.likeCount || '0'),
-          comment_count: parseInt(video.statistics?.commentCount || '0')
+          category_id: video.snippet.categoryId
         };
 
         const { error: insertError } = await serviceSupabase

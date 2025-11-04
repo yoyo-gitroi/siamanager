@@ -174,16 +174,16 @@ Deno.serve(async (req) => {
           const records = result.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
+            day: chunk.start,
             search_term: row[0],
-            views: row[1]
+            views: row[1],
+            watch_time_seconds: 0
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_search_terms')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,search_term'
+              onConflict: 'user_id,channel_id,day,search_term'
             });
 
           if (insertError) {
