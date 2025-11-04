@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
 
     console.log('Using redirect URI:', redirectUri);
 
-    // Build OAuth URL with YouTube Analytics scope
-    const scope = 'https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.readonly';
+    // Build OAuth URL with YouTube Analytics scope (including monetization for revenue data)
+    const scope = 'https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics-monetary.readonly';
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     
     // Generate state parameter for CSRF protection
