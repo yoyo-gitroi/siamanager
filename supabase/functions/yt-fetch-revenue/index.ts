@@ -170,13 +170,9 @@ Deno.serve(async (req) => {
             channel_id: channelId,
             day: row[0],
             estimated_revenue: row[1] || 0,
-            estimated_ad_revenue: row[2] || 0,
-            gross_revenue: row[3] || 0,
-            estimated_red_partner_revenue: row[4] || 0,
-            monetized_playbacks: row[5] || 0,
-            playback_based_cpm: row[6] || 0,
             ad_impressions: row[7] || 0,
-            cpm: row[8] || 0
+            cpm: row[8] || 0,
+            playback_based_cpm: row[6] || 0
           }));
 
           const { error: insertError } = await serviceSupabase

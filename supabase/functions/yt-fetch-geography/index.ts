@@ -179,20 +179,17 @@ Deno.serve(async (req) => {
           const records = countryResult.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
-            country_code: row[0],
+            day: chunk.start,
+            country: row[0],
             province: null,
             views: row[1],
-            estimated_minutes_watched: row[2],
-            average_view_duration: row[3],
-            subscribers_gained: row[4]
+            watch_time_seconds: Math.round((row[2] || 0) * 60)
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_geography')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,country_code,province'
+              onConflict: 'user_id,channel_id,day,country,province'
             });
 
           if (insertError) {
@@ -224,20 +221,17 @@ Deno.serve(async (req) => {
           const records = cityResult.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
-            country_code: 'US',
+            day: chunk.start,
+            country: 'US',
             province: row[0],
             views: row[1],
-            estimated_minutes_watched: row[2],
-            average_view_duration: 0,
-            subscribers_gained: 0
+            watch_time_seconds: Math.round((row[2] || 0) * 60)
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_geography')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,country_code,province'
+              onConflict: 'user_id,channel_id,day,country,province'
             });
 
           if (insertError) {

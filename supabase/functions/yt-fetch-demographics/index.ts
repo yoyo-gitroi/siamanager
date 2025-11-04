@@ -172,8 +172,7 @@ Deno.serve(async (req) => {
           const records = result.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
+            day: chunk.start,
             age_group: row[0],
             gender: row[1],
             viewer_percentage: row[2]
@@ -182,7 +181,7 @@ Deno.serve(async (req) => {
           const { error: insertError } = await serviceSupabase
             .from('yt_demographics')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,age_group,gender'
+              onConflict: 'user_id,channel_id,day,age_group,gender'
             });
 
           if (insertError) {

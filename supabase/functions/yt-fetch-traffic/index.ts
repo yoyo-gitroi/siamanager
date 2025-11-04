@@ -177,18 +177,17 @@ Deno.serve(async (req) => {
           const records = typesResult.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
-            traffic_source_type: row[0],
-            traffic_source_detail: null,
+            day: chunk.start,
+            source_type: row[0],
+            source_detail: null,
             views: row[1],
-            estimated_minutes_watched: row[2]
+            watch_time_seconds: Math.round((row[2] || 0) * 60)
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_traffic_sources')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,traffic_source_type,traffic_source_detail'
+              onConflict: 'user_id,channel_id,day,source_type,source_detail'
             });
 
           if (insertError) {
@@ -220,18 +219,17 @@ Deno.serve(async (req) => {
           const records = detailResult.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
-            traffic_source_type: 'DETAILED',
-            traffic_source_detail: row[0],
+            day: chunk.start,
+            source_type: 'DETAILED',
+            source_detail: row[0],
             views: row[1],
-            estimated_minutes_watched: row[2]
+            watch_time_seconds: Math.round((row[2] || 0) * 60)
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_traffic_sources')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,traffic_source_type,traffic_source_detail'
+              onConflict: 'user_id,channel_id,day,source_type,source_detail'
             });
 
           if (insertError) {

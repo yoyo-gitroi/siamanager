@@ -171,20 +171,17 @@ Deno.serve(async (req) => {
           const records = result.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
+            day: chunk.start,
             playlist_id: row[0],
-            date_start: chunk.start,
-            date_end: chunk.end,
             views: row[1],
-            estimated_minutes_watched: row[2],
-            playlist_starts: row[3],
-            views_per_playlist_start: row[4],
-            average_time_in_playlist: row[5]
+            watch_time_seconds: Math.round((row[2] || 0) * 60),
+            avg_time_in_playlist_seconds: Math.round((row[5] || 0))
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_playlist_analytics')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,playlist_id,date_start,date_end'
+              onConflict: 'user_id,channel_id,day,playlist_id'
             });
 
           if (insertError) {

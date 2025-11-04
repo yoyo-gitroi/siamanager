@@ -168,19 +168,17 @@ Deno.serve(async (req) => {
           const records = result.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
+            day: chunk.start,
+            video_id: 'aggregate',
             subscribed_status: row[0],
-            youtube_product: null,
-            views: row[1],
-            estimated_minutes_watched: row[2],
-            average_view_duration: row[3]
+            elapsed_video_time_ratio: 0.5,
+            audience_watch_ratio: (row[3] || 0) / 100
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_audience_retention')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,subscribed_status,youtube_product'
+              onConflict: 'user_id,channel_id,day,video_id,subscribed_status'
             });
 
           if (insertError) {

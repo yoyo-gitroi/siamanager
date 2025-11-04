@@ -169,18 +169,17 @@ Deno.serve(async (req) => {
           const records = deviceResult.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
+            day: chunk.start,
             device_type: row[0],
             operating_system: null,
             views: row[1],
-            estimated_minutes_watched: row[2]
+            watch_time_seconds: Math.round((row[2] || 0) * 60)
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_device_stats')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,device_type,operating_system'
+              onConflict: 'user_id,channel_id,day,device_type,operating_system'
             });
 
           if (insertError) {
@@ -210,18 +209,17 @@ Deno.serve(async (req) => {
           const records = osResult.rows.map((row: any[]) => ({
             user_id: userId,
             channel_id: channelId,
-            date_start: chunk.start,
-            date_end: chunk.end,
+            day: chunk.start,
             device_type: null,
             operating_system: row[0],
             views: row[1],
-            estimated_minutes_watched: row[2]
+            watch_time_seconds: Math.round((row[2] || 0) * 60)
           }));
 
           const { error: insertError } = await serviceSupabase
             .from('yt_device_stats')
             .upsert(records, {
-              onConflict: 'user_id,channel_id,date_start,date_end,device_type,operating_system'
+              onConflict: 'user_id,channel_id,day,device_type,operating_system'
             });
 
           if (insertError) {
