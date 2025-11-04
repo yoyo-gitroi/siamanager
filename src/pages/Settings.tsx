@@ -293,6 +293,34 @@ const Settings = () => {
     }
   };
 
+  const handleTestAPI = async (mode: 'channel_monthly' | 'video_daily') => {
+    if (!savedChannel) {
+      toast.error('Please save a channel first');
+      return;
+    }
+
+    const loadingToast = toast.loading(`Testing ${mode === 'channel_monthly' ? 'channel monthly' : 'video daily'} API...`);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('yt-analytics-test', {
+        body: { mode }
+      });
+
+      toast.dismiss(loadingToast);
+
+      if (error) throw error;
+
+      if (data && data.success) {
+        toast.success(`API test successful! Retrieved ${data.rowCount} rows from ${data.request.startDate} to ${data.request.endDate}`);
+        console.log('Test results:', data);
+      }
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      console.error('API test error:', error);
+      toast.error(error.message || 'API test failed');
+    }
+  };
+
   const handleBackfill = async () => {
     if (!savedChannel) {
       toast.error('Please save a channel first');
@@ -310,13 +338,20 @@ const Settings = () => {
       toast.info('Starting backfill... This may take several minutes.');
 
       const { data, error } = await supabase.functions.invoke('yt-backfill-v2', {
-        body: { fromDate: '2015-01-01' }  // YouTube Analytics data starts from 2015
+        body: { fromDate: '2015-01-01' }
       });
 
       if (error) throw error;
 
       if (data) {
-        toast.success(`Backfill completed! Channel: ${data.channelRows} rows, Videos: ${data.videoRows} rows`);
+        let message = `Backfill completed! Channel: ${data.channelRows} rows, Videos: ${data.videoRows} rows`;
+        if (data.salvagedChunks?.length > 0) {
+          message += ` (${data.salvagedChunks.length} chunks salvaged with minimal metrics)`;
+        }
+        if (data.failedChunks?.length > 0) {
+          message += ` ⚠️ ${data.failedChunks.length} chunks failed`;
+        }
+        toast.success(message);
         
         // Reload sync logs
         const { data: syncState } = await supabase
@@ -597,31 +632,60 @@ const Settings = () => {
                       </div>
                     </div>
 
-                    {/* Step 3: Backfill */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h3 className="font-medium">Step 3: Run Full Backfill Now</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Fetch all historical data from 2006 to present
-                        </p>
+                    {/* Step 3: Test API & Backfill */}
+                    <div className="space-y-4">
+                      <div className="p-4 border rounded-lg space-y-4">
+                        <div>
+                          <h3 className="font-medium">Step 3a: Test API Connection (Optional)</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Verify your YouTube Analytics access before running a full backfill
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleTestAPI('channel_monthly')}
+                            disabled={!savedChannel}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Test Channel Lifetime (Monthly)
+                          </Button>
+                          <Button
+                            onClick={() => handleTestAPI('video_daily')}
+                            disabled={!savedChannel}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Test Video Daily (Last 30 Days)
+                          </Button>
+                        </div>
                       </div>
-                      <Button
-                        onClick={handleBackfill}
-                        disabled={isBackfilling || !savedChannel}
-                        variant="outline"
-                      >
-                        {isBackfilling ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Running...
-                          </>
-                        ) : (
-                          <>
-                            <Database className="mr-2 h-4 w-4" />
-                            Run Backfill
-                          </>
-                        )}
-                      </Button>
+
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <h3 className="font-medium">Step 3b: Run Full Backfill</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Fetch all historical data from 2015 to present (YouTube Analytics data starts from 2015)
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Note: Video-level reports do not include subscriber metrics per YouTube API design
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleBackfill}
+                          disabled={isBackfilling || !savedChannel}
+                          variant="outline"
+                        >
+                          {isBackfilling ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Backfilling...
+                            </>
+                          ) : (
+                            'Run Backfill'
+                          )}
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Step 4: Daily Sync */}

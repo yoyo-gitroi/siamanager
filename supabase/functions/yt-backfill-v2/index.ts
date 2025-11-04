@@ -87,10 +87,11 @@ async function queryYouTubeAnalytics(
   url.searchParams.set('metrics', metrics);
   url.searchParams.set('dimensions', dimensions);
 
-  console.log(`Querying YouTube Analytics: ${startDate} to ${endDate}, dimensions: ${dimensions}`);
+  console.log(`Querying YouTube Analytics: ${startDate} to ${endDate}, dimensions: ${dimensions}, metrics: ${metrics}`);
 
   let lastErrText = '';
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const jitter = Math.random() * 200;
     const response = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -110,16 +111,45 @@ async function queryYouTubeAnalytics(
       retryable = response.status >= 500;
     }
 
-    console.warn(`YouTube API error (attempt ${attempt}/4) for ${startDate}-${endDate}:`, errText);
-    if (!retryable || attempt === 4) {
+    console.warn(`YouTube API error (attempt ${attempt}/6) for ${startDate}-${endDate}:`, errText);
+    if (!retryable || attempt === 6) {
       throw new Error(`Analytics API error: ${errText}`);
     }
-    // Exponential backoff
-    await new Promise((r) => setTimeout(r, attempt * 700));
+    // Exponential backoff with jitter
+    await new Promise((r) => setTimeout(r, attempt * 700 + jitter));
   }
 
-  // Should never reach here
   throw new Error(`Analytics API error: ${lastErrText || 'Unknown error'}`);
+}
+
+async function queryWithFallback(
+  accessToken: string,
+  channelId: string,
+  startDate: string,
+  endDate: string,
+  metrics: string,
+  dimensions: string,
+  minimalMetrics: string
+): Promise<{ data: any; wasFallback: boolean }> {
+  try {
+    const data = await queryYouTubeAnalytics(accessToken, channelId, startDate, endDate, metrics, dimensions);
+    return { data, wasFallback: false };
+  } catch (err: any) {
+    const errMsg = err.message || '';
+    // If 500 after retries, try minimal metrics
+    if (errMsg.includes('"code": 500') || errMsg.includes('internalError')) {
+      console.warn(`Chunk ${startDate}-${endDate} failed with 500, trying minimal metrics...`);
+      try {
+        const fallbackData = await queryYouTubeAnalytics(accessToken, channelId, startDate, endDate, minimalMetrics, dimensions);
+        return { data: fallbackData, wasFallback: true };
+      } catch (fallbackErr) {
+        console.error(`Minimal metrics also failed for ${startDate}-${endDate}`);
+        throw fallbackErr;
+      }
+    }
+    // If 400 "not supported", throw immediately (caller will handle metric downgrade)
+    throw err;
+  }
 }
 
 function getMonthChunks(fromDate: string, toDate: string): Array<{start: string, end: string}> {
@@ -204,11 +234,17 @@ Deno.serve(async (req) => {
 
     const { token: accessToken, channelId } = await getValidToken(supabase, userId);
     
-    const metrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,shares,subscribersGained,subscribersLost';
+    // Safe metrics per report type
+    const channelMetrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,subscribersGained,subscribersLost';
+    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments';
+    const minimalMetrics = 'views,estimatedMinutesWatched';
+    
     const chunks = getMonthChunks(actualFromDate, endDate);
     
     let totalChannelRows = 0;
     let totalVideoRows = 0;
+    const failedChunks: Array<{ type: string; start: string; end: string; error: string }> = [];
+    const salvagedChunks: Array<{ type: string; start: string; end: string }> = [];
 
     // Process channel-level data
     console.log('Fetching channel-level daily data...');
@@ -217,19 +253,24 @@ Deno.serve(async (req) => {
         channelId,
         startDate: chunk.start,
         endDate: chunk.end,
-        metrics,
+        metrics: channelMetrics,
         dimensions: 'day'
       };
 
       try {
-        const data = await queryYouTubeAnalytics(
+        const { data, wasFallback } = await queryWithFallback(
           accessToken,
           channelId,
           chunk.start,
           chunk.end,
-          metrics,
-          'day'
+          channelMetrics,
+          'day',
+          minimalMetrics
         );
+
+        if (wasFallback) {
+          salvagedChunks.push({ type: 'channel', start: chunk.start, end: chunk.end });
+        }
 
         // Archive raw response
         await supabase.from('youtube_raw_archive').insert({
@@ -251,11 +292,6 @@ Deno.serve(async (req) => {
             day: row[columnMap.get('day') as number],
             views: row[columnMap.get('views') as number] || 0,
             watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-            average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-            average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
-            likes: row[columnMap.get('likes') as number] || 0,
-            comments: row[columnMap.get('comments') as number] || 0,
-            shares: row[columnMap.get('shares') as number] || 0,
             subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
             subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
           }));
@@ -270,8 +306,19 @@ Deno.serve(async (req) => {
             totalChannelRows += rows.length;
           }
         }
-      } catch (err) {
-        console.error('Channel chunk failed', { start: chunk.start, end: chunk.end }, err);
+      } catch (err: any) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('Channel chunk failed', { start: chunk.start, end: chunk.end }, errMsg);
+        failedChunks.push({ type: 'channel', start: chunk.start, end: chunk.end, error: errMsg });
+        
+        // Archive error
+        await supabase.from('youtube_raw_archive').insert({
+          user_id: userId,
+          channel_id: channelId,
+          report_type: 'daily_channel_error',
+          request_json: requestData,
+          response_json: { error: errMsg },
+        });
       }
 
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -284,19 +331,24 @@ Deno.serve(async (req) => {
         channelId,
         startDate: chunk.start,
         endDate: chunk.end,
-        metrics,
+        metrics: videoMetrics,
         dimensions: 'video,day'
       };
 
       try {
-        const data = await queryYouTubeAnalytics(
+        const { data, wasFallback } = await queryWithFallback(
           accessToken,
           channelId,
           chunk.start,
           chunk.end,
-          metrics,
-          'video,day'
+          videoMetrics,
+          'video,day',
+          minimalMetrics
         );
+
+        if (wasFallback) {
+          salvagedChunks.push({ type: 'video', start: chunk.start, end: chunk.end });
+        }
 
         // Archive raw response
         await supabase.from('youtube_raw_archive').insert({
@@ -319,13 +371,8 @@ Deno.serve(async (req) => {
             day: row[columnMap.get('day') as number],
             views: row[columnMap.get('views') as number] || 0,
             watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-            average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-            average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
             likes: row[columnMap.get('likes') as number] || 0,
             comments: row[columnMap.get('comments') as number] || 0,
-            shares: row[columnMap.get('shares') as number] || 0,
-            subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
-            subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
           }));
 
           const { error } = await supabase
@@ -338,8 +385,19 @@ Deno.serve(async (req) => {
             totalVideoRows += rows.length;
           }
         }
-      } catch (err) {
-        console.error('Video chunk failed', { start: chunk.start, end: chunk.end }, err);
+      } catch (err: any) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('Video chunk failed', { start: chunk.start, end: chunk.end }, errMsg);
+        failedChunks.push({ type: 'video', start: chunk.start, end: chunk.end, error: errMsg });
+        
+        // Archive error
+        await supabase.from('youtube_raw_archive').insert({
+          user_id: userId,
+          channel_id: channelId,
+          report_type: 'daily_video_error',
+          request_json: requestData,
+          response_json: { error: errMsg },
+        });
       }
 
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -357,12 +415,15 @@ Deno.serve(async (req) => {
     }, { onConflict: 'user_id,channel_id' });
 
     console.log(`Backfill complete: ${totalChannelRows} channel rows, ${totalVideoRows} video rows`);
+    console.log(`Failed chunks: ${failedChunks.length}, Salvaged: ${salvagedChunks.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         channelRows: totalChannelRows,
         videoRows: totalVideoRows,
+        failedChunks,
+        salvagedChunks,
         message: `Backfill completed successfully`
       }),
       { 
