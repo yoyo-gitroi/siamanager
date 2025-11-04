@@ -212,9 +212,10 @@ Deno.serve(async (req) => {
 
       actualFromDate = fromDate || thirtyDaysAgoLocal.toISOString().split('T')[0];
       actualToDate = toDate || yesterday.toISOString().split('T')[0];
-      // Use metrics supported for video+day reports
-      metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,likes,comments';
-      dimensions = dimensions || 'day,video';
+      // For time-based reports: use day dimension only (cannot combine with video)
+      // YouTube API does not support video+day together
+      metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,likes,comments,subscribersGained,subscribersLost';
+      dimensions = dimensions || 'day';
     } else {
       throw new Error('Invalid mode. Use "channel_monthly" or "video_daily"');
     }
