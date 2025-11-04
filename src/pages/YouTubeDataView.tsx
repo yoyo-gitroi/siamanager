@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DataTable from "@/components/DataTable";
+import { YouTubeDataSummary } from "@/components/YouTubeDataSummary";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 
@@ -184,9 +185,11 @@ export default function YouTubeDataView() {
       <div>
         <h1 className="text-3xl font-bold mb-2">YouTube Analytics Data</h1>
         <p className="text-muted-foreground">
-          View your synced YouTube analytics data
+          Comprehensive view of your YouTube channel and video analytics
         </p>
       </div>
+
+      <YouTubeDataSummary />
 
       <Tabs defaultValue="channel" className="space-y-4">
         <TabsList>

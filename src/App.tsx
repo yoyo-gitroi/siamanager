@@ -38,6 +38,7 @@ const App = () => (
             <Route path="create" element={<Content />} />
             <Route path="klipper-agent" element={<KlipperAgent />} />
             <Route path="shorts-logs" element={<ShortsLogs />} />
+            <Route path="youtube-data" element={<YouTubeDataView />} />
             <Route path="post" element={<Publishing />} />
             <Route path="engage" element={<Engagement />} />
             <Route path="settings" element={<Settings />} />

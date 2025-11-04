@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
         const { error: insertError } = await serviceSupabase
           .from('yt_video_metadata')
           .upsert([record], {
-            onConflict: 'video_id'
+            onConflict: 'user_id,video_id'
           });
 
         if (insertError) {

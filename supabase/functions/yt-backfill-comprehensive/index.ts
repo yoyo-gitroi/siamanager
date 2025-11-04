@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
       failed: []
     };
 
-    // Define all backfill functions to run
+    // Define all 10 backfill functions to run
     const functions = [
       { name: 'yt-backfill-v2', label: 'Channel & Video Daily Metrics' },
+      { name: 'yt-fetch-video-metadata', label: 'Video Metadata' },
       { name: 'yt-fetch-revenue', label: 'Revenue Data' },
       { name: 'yt-fetch-demographics', label: 'Demographics' },
       { name: 'yt-fetch-geography', label: 'Geography' },
@@ -45,8 +46,7 @@ Deno.serve(async (req) => {
       { name: 'yt-fetch-devices', label: 'Device Stats' },
       { name: 'yt-fetch-retention', label: 'Audience Retention' },
       { name: 'yt-fetch-playlists', label: 'Playlists' },
-      { name: 'yt-fetch-search-terms', label: 'Search Terms' },
-      { name: 'yt-fetch-video-metadata', label: 'Video Metadata' }
+      { name: 'yt-fetch-search-terms', label: 'Search Terms' }
     ];
 
     for (const func of functions) {
