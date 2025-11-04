@@ -158,12 +158,21 @@ Deno.serve(async (req) => {
 
     // Set defaults based on mode
     if (mode === 'channel_monthly') {
-      // For monthly dimension, dates must align to month boundaries
-      const endDate = toDate ? new Date(toDate) : today;
-      const lastDayOfMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
-      
-      actualFromDate = fromDate || '2015-01-01';
-      actualToDate = toDate || lastDayOfMonth.toISOString().split('T')[0];
+      // For monthly dimension:
+      // - start must be first day of month
+      // - end must be last day of a COMPLETED month (last day of previous month relative to "today")
+      const lastCompletedMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // eom of previous month
+
+      const requestedEndBase = toDate ? new Date(toDate) : today;
+      const requestedEndMonthEnd = new Date(requestedEndBase.getFullYear(), requestedEndBase.getMonth() + 1, 0);
+      const finalEnd = requestedEndMonthEnd > lastCompletedMonthEnd ? lastCompletedMonthEnd : requestedEndMonthEnd;
+
+      const startBase = fromDate ? new Date(fromDate) : new Date('2015-01-01');
+      const startMonthStart = new Date(startBase.getFullYear(), startBase.getMonth(), 1);
+
+      actualFromDate = startMonthStart.toISOString().split('T')[0];
+      actualToDate = finalEnd.toISOString().split('T')[0];
+
       metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,subscribersGained,subscribersLost';
       dimensions = dimensions || 'month';
     } else if (mode === 'video_daily') {
