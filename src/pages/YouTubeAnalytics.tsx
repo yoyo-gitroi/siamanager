@@ -1,47 +1,47 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useAnalytics } from "@/hooks/useAnalytics";
+import { useYouTubeData } from "@/hooks/useYouTubeData";
 import StatCard from "@/components/StatCard";
 import DataTable from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Clock, Users, TrendingUp, AlertCircle, Target, PlayCircle } from "lucide-react";
+import { Eye, Clock, Users, TrendingUp, AlertCircle, Target, PlayCircle, DollarSign, ThumbsUp, MessageSquare } from "lucide-react";
+import { format, subDays } from "date-fns";
 import { 
-  LineChart, Line, BarChart, Bar, ScatterChart, Scatter, 
+  LineChart, Line, BarChart, Bar, PieChart, Pie, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell 
 } from "recharts";
 
 const YouTubeAnalytics = () => {
   const { user } = useAuth();
-  const { youtubeData, loading } = useAnalytics(user?.id);
+  const { channelData, videoData, videoMetadata, revenueData, loading } = useYouTubeData(user?.id, 90);
   const [period, setPeriod] = useState<"30d" | "60d">("30d");
 
   // Calculate current and prior period metrics
   const { current, prior, alerts } = useMemo(() => {
-    if (!youtubeData.length) return { current: null, prior: null, alerts: [] };
+    if (!channelData.length) return { current: null, prior: null, alerts: [] };
 
     const now = new Date();
     const daysBack = period === "30d" ? 30 : 60;
-    const currentPeriodStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-    const priorPeriodStart = new Date(currentPeriodStart.getTime() - daysBack * 24 * 60 * 60 * 1000);
+    const currentPeriodStart = subDays(now, daysBack);
+    const priorPeriodStart = subDays(currentPeriodStart, daysBack);
 
-    const currentData = youtubeData.filter(v => {
-      const date = new Date(v.publish_date);
+    const currentData = channelData.filter(d => {
+      const date = new Date(d.day);
       return date >= currentPeriodStart && date <= now;
     });
 
-    const priorData = youtubeData.filter(v => {
-      const date = new Date(v.publish_date);
+    const priorData = channelData.filter(d => {
+      const date = new Date(d.day);
       return date >= priorPeriodStart && date < currentPeriodStart;
     });
 
-    const calcMetrics = (data: typeof youtubeData) => {
-      const views = data.reduce((sum, v) => sum + v.views, 0);
-      const watchTime = data.reduce((sum, v) => sum + v.watch_time_hours, 0);
-      const impressions = data.reduce((sum, v) => sum + v.impressions, 0);
-      const ctr = impressions > 0 ? (views / impressions) * 100 : 0;
-      const vtr = impressions > 0 ? (views / impressions) : 0;
-      return { views, watchTime, impressions, ctr, vtr };
+    const calcMetrics = (data: typeof channelData) => {
+      const views = data.reduce((sum, d) => sum + (d.views || 0), 0);
+      const watchTime = data.reduce((sum, d) => sum + (d.watch_time_seconds || 0), 0) / 3600;
+      const subscribers = data.reduce((sum, d) => sum + (d.subscribers_gained || 0) - (d.subscribers_lost || 0), 0);
+      const revenue = data.reduce((sum, d) => sum + (Number(d.estimated_revenue) || 0), 0);
+      return { views, watchTime, subscribers, revenue };
     };
 
     const current = calcMetrics(currentData);
@@ -49,71 +49,124 @@ const YouTubeAnalytics = () => {
 
     // Check alerts
     const alerts: string[] = [];
-    if (prior.ctr > 0 && ((prior.ctr - current.ctr) / prior.ctr) >= 0.15) {
-      alerts.push("CTR dropped ≥15%");
+    if (prior.views > 0 && ((prior.views - current.views) / prior.views) >= 0.15) {
+      alerts.push("Views dropped ≥15%");
     }
-    if (prior.vtr > 0 && ((prior.vtr - current.vtr) / prior.vtr) >= 0.15) {
-      alerts.push("VTR dropped ≥15%");
+    if (prior.watchTime > 0 && ((prior.watchTime - current.watchTime) / prior.watchTime) >= 0.15) {
+      alerts.push("Watch time dropped ≥15%");
+    }
+    if (current.subscribers < 0) {
+      alerts.push("Net negative subscribers");
     }
 
     return { current, prior, alerts };
-  }, [youtubeData, period]);
+  }, [channelData, period]);
 
-  // Content performance table data with calculated metrics
-  const contentPerformance = useMemo(() => {
-    return youtubeData.map(video => {
-      const vtr = video.impressions > 0 ? (video.views / video.impressions) : 0;
-      const watchTimePerView = video.views > 0 ? (video.watch_time_hours * 60) / video.views : 0;
-      const subsPerK = video.views > 0 ? (1000 / video.views) : 0;
+  // Video performance data
+  const videoPerformance = useMemo(() => {
+    if (!videoData.length || !videoMetadata.length) return [];
 
-      return {
-        title: video.video_title,
-        publishDate: new Date(video.publish_date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-        views: video.views,
-        watchTime: video.watch_time_hours.toFixed(2),
-        impressions: video.impressions,
-        ctr: video.ctr.toFixed(2),
-        vtr: vtr.toFixed(3),
-        watchTimePerView: watchTimePerView.toFixed(2),
-        subsPerK: subsPerK.toFixed(2),
-        url: video.video_url,
+    // Group video data by video_id and aggregate
+    const videoMap = new Map<string, any>();
+
+    videoData.forEach(v => {
+      const existing = videoMap.get(v.video_id) || {
+        video_id: v.video_id,
+        views: 0,
+        watch_time_seconds: 0,
+        impressions: 0,
+        ctr: 0,
+        likes: 0,
+        comments: 0,
+        dataPoints: 0
       };
+
+      videoMap.set(v.video_id, {
+        ...existing,
+        views: existing.views + (v.views || 0),
+        watch_time_seconds: existing.watch_time_seconds + (v.watch_time_seconds || 0),
+        impressions: existing.impressions + (v.impressions || 0),
+        ctr: existing.ctr + (v.click_through_rate || 0),
+        likes: existing.likes + (v.likes || 0),
+        comments: existing.comments + (v.comments || 0),
+        dataPoints: existing.dataPoints + 1
+      });
     });
-  }, [youtubeData]);
 
-  // CTR vs Impressions scatter data
-  const scatterData = useMemo(() => {
-    return youtubeData.map(v => ({
-      impressions: v.impressions,
-      ctr: v.ctr,
-      views: v.views,
-      title: v.video_title.substring(0, 20) + "...",
-    }));
-  }, [youtubeData]);
+    // Join with metadata
+    return Array.from(videoMap.values())
+      .map(v => {
+        const metadata = videoMetadata.find(m => m.video_id === v.video_id);
+        const avgCtr = v.dataPoints > 0 ? v.ctr / v.dataPoints : 0;
+        const engagementRate = v.views > 0 ? ((v.likes + v.comments) / v.views) * 100 : 0;
 
-  // VTR distribution
-  const vtrData = useMemo(() => {
-    const median = youtubeData.length > 0 
-      ? youtubeData.map(v => v.impressions > 0 ? v.views / v.impressions : 0).sort((a, b) => a - b)[Math.floor(youtubeData.length / 2)]
-      : 0;
+        return {
+          video_id: v.video_id,
+          title: metadata?.title || v.video_id,
+          published_at: metadata?.published_at || '',
+          views: v.views,
+          watchHours: (v.watch_time_seconds / 3600).toFixed(1),
+          impressions: v.impressions,
+          ctr: avgCtr.toFixed(2),
+          likes: v.likes,
+          comments: v.comments,
+          engagement: engagementRate.toFixed(2)
+        };
+      })
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 50);
+  }, [videoData, videoMetadata]);
 
-    return youtubeData.map(v => ({
-      title: v.video_title.substring(0, 25) + "...",
-      vtr: v.impressions > 0 ? (v.views / v.impressions) : 0,
-      isAboveMedian: v.impressions > 0 ? (v.views / v.impressions) >= median : false,
-    }));
-  }, [youtubeData]);
+  // Daily trend chart
+  const dailyTrendData = useMemo(() => {
+    const last30Days = channelData
+      .filter(d => new Date(d.day) >= subDays(new Date(), 30))
+      .sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime())
+      .map(d => ({
+        date: format(new Date(d.day), "MMM dd"),
+        views: d.views || 0,
+        watchHours: ((d.watch_time_seconds || 0) / 3600),
+        subscribers: (d.subscribers_gained || 0) - (d.subscribers_lost || 0),
+        revenue: Number(d.estimated_revenue) || 0
+      }));
 
-  const contentColumns = [
-    { key: "title", label: "Video Title", sortable: true },
-    { key: "publishDate", label: "Published (IST)", sortable: true },
-    { key: "views", label: "Views", sortable: true },
-    { key: "watchTime", label: "Watch Time (hrs)", sortable: true },
-    { key: "impressions", label: "Impressions", sortable: true },
+    return last30Days;
+  }, [channelData]);
+
+  const videoColumns = [
+    { 
+      key: "title", 
+      label: "Video Title", 
+      sortable: true,
+      render: (val: string) => <div className="max-w-md truncate">{val}</div>
+    },
+    { 
+      key: "views", 
+      label: "Views", 
+      sortable: true,
+      render: (val: number) => val.toLocaleString()
+    },
+    { key: "watchHours", label: "Watch (hrs)", sortable: true },
+    { 
+      key: "impressions", 
+      label: "Impressions", 
+      sortable: true,
+      render: (val: number) => val.toLocaleString()
+    },
     { key: "ctr", label: "CTR (%)", sortable: true },
-    { key: "vtr", label: "VTR", sortable: true },
-    { key: "watchTimePerView", label: "Watch/View (min)", sortable: true },
-    { key: "subsPerK", label: "Subs/1K Views", sortable: true },
+    { 
+      key: "likes", 
+      label: "Likes", 
+      sortable: true,
+      render: (val: number) => val.toLocaleString()
+    },
+    { 
+      key: "comments", 
+      label: "Comments", 
+      sortable: true,
+      render: (val: number) => val.toLocaleString()
+    },
+    { key: "engagement", label: "Engagement %", sortable: true },
   ];
 
   if (loading) {
@@ -177,7 +230,7 @@ const YouTubeAnalytics = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <StatCard
             label="Views"
             value={current?.views.toLocaleString() || "0"}
@@ -186,109 +239,115 @@ const YouTubeAnalytics = () => {
             iconColor="primary"
           />
           <StatCard
-            label="Watch Time (hrs)"
-            value={current?.watchTime.toFixed(1) || "0"}
+            label="Watch Hours"
+            value={current?.watchTime.toFixed(0) || "0"}
             growth={current && prior ? calcChange(current.watchTime, prior.watchTime) : 0}
             icon={Clock}
             iconColor="success"
           />
           <StatCard
-            label="Impressions"
-            value={current?.impressions.toLocaleString() || "0"}
-            growth={current && prior ? calcChange(current.impressions, prior.impressions) : 0}
-            icon={Target}
+            label="Net Subscribers"
+            value={current?.subscribers.toLocaleString() || "0"}
+            growth={current && prior ? calcChange(current.subscribers, prior.subscribers) : 0}
+            icon={Users}
             iconColor="warning"
           />
           <StatCard
-            label="CTR (%)"
-            value={current?.ctr.toFixed(2) || "0"}
-            growth={current && prior ? calcChange(current.ctr, prior.ctr) : 0}
-            icon={TrendingUp}
+            label="Revenue"
+            value={`$${current?.revenue.toFixed(2) || "0"}`}
+            growth={current && prior ? calcChange(current.revenue, prior.revenue) : 0}
+            icon={DollarSign}
             iconColor="secondary"
           />
           <StatCard
-            label="VTR"
-            value={current?.vtr.toFixed(3) || "0"}
-            growth={current && prior ? calcChange(current.vtr, prior.vtr) : 0}
+            label="Videos"
+            value={videoMetadata.length.toLocaleString()}
             icon={PlayCircle}
             iconColor="primary"
           />
         </div>
       </div>
 
-      {/* Content Performance Table */}
+      {/* Daily Trends */}
       <div className="stat-card">
-        <h2 className="mb-4">Content Performance</h2>
+        <h2 className="mb-4">30-Day Performance Trends</h2>
+        <ResponsiveContainer width="100%" height={350}>
+          <AreaChart data={dailyTrendData}>
+            <defs>
+              <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorWatch" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis dataKey="date" className="text-xs" />
+            <YAxis yAxisId="left" className="text-xs" />
+            <YAxis yAxisId="right" orientation="right" className="text-xs" />
+            <Tooltip contentStyle={{
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "12px",
+            }} />
+            <Legend />
+            <Area yAxisId="left" type="monotone" dataKey="views" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorViews)" name="Views" />
+            <Area yAxisId="right" type="monotone" dataKey="watchHours" stroke="hsl(var(--success))" fillOpacity={1} fill="url(#colorWatch)" name="Watch Hours" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Video Performance Table */}
+      <div className="stat-card">
+        <h2 className="mb-4">Top Video Performance</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Top 50 videos by views with engagement metrics
+        </p>
         <DataTable
-          columns={contentColumns}
-          data={contentPerformance}
-          onRowClick={(row) => row.url && window.open(row.url, "_blank")}
+          columns={videoColumns}
+          data={videoPerformance}
+          onRowClick={(row) => window.open(`https://youtube.com/watch?v=${row.video_id}`, "_blank")}
         />
       </div>
 
-      {/* Charts Row */}
+      {/* Revenue & Engagement Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Thumbnail & Hook Effect - CTR vs Impressions */}
         <div className="stat-card">
-          <h2 className="mb-4">Thumbnail & Hook Effect</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            CTR vs Impressions (bubble size = Views)
-          </p>
+          <h2 className="mb-4">Daily Revenue Trend</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <ScatterChart>
+            <LineChart data={dailyTrendData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                type="number" 
-                dataKey="impressions" 
-                name="Impressions" 
-                className="text-xs"
-              />
-              <YAxis 
-                type="number" 
-                dataKey="ctr" 
-                name="CTR (%)" 
-                className="text-xs"
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "12px",
-                }}
-                cursor={{ strokeDasharray: '3 3' }}
-              />
-              <Scatter 
-                name="Videos" 
-                data={scatterData} 
-                fill="hsl(var(--primary))"
-              />
-            </ScatterChart>
+              <XAxis dataKey="date" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "12px",
+              }} />
+              <Line type="monotone" dataKey="revenue" stroke="hsl(var(--warning))" strokeWidth={2} name="Revenue ($)" dot={false} />
+            </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* View-Through Rate */}
         <div className="stat-card">
-          <h2 className="mb-4">View-Through Rate (VTR)</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Views / Impressions by video
-          </p>
+          <h2 className="mb-4">Daily Subscriber Growth</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={vtrData.slice(0, 10)}>
+            <BarChart data={dailyTrendData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="title" className="text-xs" angle={-45} textAnchor="end" height={80} />
+              <XAxis dataKey="date" className="text-xs" />
               <YAxis className="text-xs" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "12px",
-                }}
-              />
-              <Bar dataKey="vtr" name="VTR">
-                {vtrData.slice(0, 10).map((entry, index) => (
+              <Tooltip contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "12px",
+              }} />
+              <Bar dataKey="subscribers" name="Net Subscribers">
+                {dailyTrendData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={entry.isAboveMedian ? "hsl(var(--success))" : "hsl(var(--danger))"}
+                    fill={entry.subscribers >= 0 ? "hsl(var(--success))" : "hsl(var(--danger))"}
                   />
                 ))}
               </Bar>

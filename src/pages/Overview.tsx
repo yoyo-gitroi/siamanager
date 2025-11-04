@@ -1,128 +1,98 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useAnalytics } from "@/hooks/useAnalytics";
+import { useYouTubeData } from "@/hooks/useYouTubeData";
 import { useAgents } from "@/hooks/useAgents";
 import StatCard from "@/components/StatCard";
 import DataTable from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Play, Pause, Settings as SettingsIcon, TrendingUp, TrendingDown } from "lucide-react";
-import { format, subDays, isAfter, isBefore } from "date-fns";
+import { Play, Eye, TrendingUp, DollarSign, Users } from "lucide-react";
+import { format, subDays } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { DateRangePicker } from "@/components/DateRangePicker";
 const Overview = () => {
-  const {
-    user
-  } = useAuth();
-  const {
-    youtubeData,
-    linkedInData,
-    loading: analyticsLoading
-  } = useAnalytics(user?.id);
-  const {
-    agents,
-    runs,
-    loading: agentsLoading,
-    runAgent
-  } = useAgents();
+  const { user } = useAuth();
+  const { channelData, revenueData, loading: ytLoading } = useYouTubeData(user?.id, 60);
+  const { agents, runs, loading: agentsLoading, runAgent } = useAgents();
   const [dateRange, setDateRange] = useState({
     from: subDays(new Date(), 30),
     to: new Date()
   });
 
-  // Calculate KPIs for last 30/90 days
+  // Calculate KPIs from channel data
   const kpis = useMemo(() => {
+    if (!channelData.length) {
+      return {
+        views30: 0, viewsGrowth: 0,
+        watchHours30: 0, watchGrowth: 0,
+        subscribers30: 0, subsGrowth: 0,
+        revenue30: 0, revenueGrowth: 0
+      };
+    }
+
     const now = new Date();
     const days30Ago = subDays(now, 30);
     const days60Ago = subDays(now, 60);
-    const days90Ago = subDays(now, 90);
 
-    // YouTube metrics
-    const ytLast30 = youtubeData.filter(v => v.publish_date && isAfter(new Date(v.publish_date), days30Ago));
-    const ytPrev30 = youtubeData.filter(v => v.publish_date && isAfter(new Date(v.publish_date), days60Ago) && isBefore(new Date(v.publish_date), days30Ago));
-    const ytViews30 = ytLast30.reduce((sum, v) => sum + v.views, 0);
-    const ytViewsPrev30 = ytPrev30.reduce((sum, v) => sum + v.views, 0);
-    const ytViewsGrowth = ytViewsPrev30 > 0 ? (ytViews30 - ytViewsPrev30) / ytViewsPrev30 * 100 : 0;
-    const ytWatchTime30 = ytLast30.reduce((sum, v) => sum + v.watch_time_hours, 0);
-    const ytAvgWatch = ytLast30.length > 0 ? ytWatchTime30 / ytLast30.length : 0;
+    // Last 30 days
+    const last30 = channelData.filter(d => new Date(d.day) >= days30Ago);
+    const prev30 = channelData.filter(d => {
+      const date = new Date(d.day);
+      return date >= days60Ago && date < days30Ago;
+    });
 
-    // LinkedIn metrics
-    const liLast30 = linkedInData.filter(d => isAfter(new Date(d.date), days30Ago));
-    const liPrev30 = linkedInData.filter(d => isAfter(new Date(d.date), days60Ago) && isBefore(new Date(d.date), days30Ago));
-    const liImpressions30 = liLast30.reduce((sum, d) => sum + d.impressions, 0);
-    const liImpressionsPrev30 = liPrev30.reduce((sum, d) => sum + d.impressions, 0);
-    const liImpressionsGrowth = liImpressionsPrev30 > 0 ? (liImpressions30 - liImpressionsPrev30) / liImpressionsPrev30 * 100 : 0;
-    const liEngagement30 = liLast30.reduce((sum, d) => sum + d.engagement, 0);
-    const liEngagementRate = liImpressions30 > 0 ? liEngagement30 / liImpressions30 * 100 : 0;
+    const views30 = last30.reduce((sum, d) => sum + (d.views || 0), 0);
+    const viewsPrev = prev30.reduce((sum, d) => sum + (d.views || 0), 0);
+    const viewsGrowth = viewsPrev > 0 ? ((views30 - viewsPrev) / viewsPrev) * 100 : 0;
+
+    const watchHours30 = last30.reduce((sum, d) => sum + (d.watch_time_seconds || 0), 0) / 3600;
+    const watchPrev = prev30.reduce((sum, d) => sum + (d.watch_time_seconds || 0), 0) / 3600;
+    const watchGrowth = watchPrev > 0 ? ((watchHours30 - watchPrev) / watchPrev) * 100 : 0;
+
+    const subsGained30 = last30.reduce((sum, d) => sum + (d.subscribers_gained || 0), 0);
+    const subsLost30 = last30.reduce((sum, d) => sum + (d.subscribers_lost || 0), 0);
+    const subscribers30 = subsGained30 - subsLost30;
+    
+    const subsGainedPrev = prev30.reduce((sum, d) => sum + (d.subscribers_gained || 0), 0);
+    const subsLostPrev = prev30.reduce((sum, d) => sum + (d.subscribers_lost || 0), 0);
+    const subscribersPrev = subsGainedPrev - subsLostPrev;
+    const subsGrowth = subscribersPrev !== 0 ? ((subscribers30 - subscribersPrev) / Math.abs(subscribersPrev)) * 100 : 0;
+
+    const revenue30 = last30.reduce((sum, d) => sum + (Number(d.estimated_revenue) || 0), 0);
+    const revenuePrev = prev30.reduce((sum, d) => sum + (Number(d.estimated_revenue) || 0), 0);
+    const revenueGrowth = revenuePrev > 0 ? ((revenue30 - revenuePrev) / revenuePrev) * 100 : 0;
+
     return {
-      ytViews30,
-      ytViewsGrowth,
-      ytWatchTime30,
-      ytAvgWatch,
-      liImpressions30,
-      liImpressionsGrowth,
-      liEngagement30,
-      liEngagementRate
+      views30,
+      viewsGrowth,
+      watchHours30,
+      watchGrowth,
+      subscribers30,
+      subsGrowth,
+      revenue30,
+      revenueGrowth
     };
-  }, [youtubeData, linkedInData]);
+  }, [channelData]);
 
   // Prepare 30-day growth chart
   const chartData = useMemo(() => {
     const now = new Date();
     const days30Ago = subDays(now, 30);
-    const dateMap = new Map<string, {
-      youtube: number;
-      linkedin: number;
-      sortDate: Date;
-    }>();
-    youtubeData.forEach(video => {
-      if (video.publish_date && isAfter(new Date(video.publish_date), days30Ago)) {
-        const videoDate = new Date(video.publish_date);
-        const date = format(videoDate, "MMM dd");
-        const existing = dateMap.get(date) || {
-          youtube: 0,
-          linkedin: 0,
-          sortDate: videoDate
-        };
-        dateMap.set(date, {
-          youtube: existing.youtube + video.views,
-          linkedin: existing.linkedin,
-          sortDate: existing.sortDate
-        });
-      }
-    });
-    linkedInData.forEach(day => {
-      if (isAfter(new Date(day.date), days30Ago)) {
-        const dayDate = new Date(day.date);
-        const date = format(dayDate, "MMM dd");
-        const existing = dateMap.get(date) || {
-          youtube: 0,
-          linkedin: 0,
-          sortDate: dayDate
-        };
-        dateMap.set(date, {
-          youtube: existing.youtube,
-          linkedin: existing.linkedin + day.impressions,
-          sortDate: existing.sortDate
-        });
-      }
-    });
-    return Array.from(dateMap.entries()).map(([date, values]) => ({
-      date,
-      youtube: values.youtube,
-      linkedin: values.linkedin,
-      sortDate: values.sortDate
-    })).sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime()).map(({
-      date,
-      youtube,
-      linkedin
-    }) => ({
-      date,
-      youtube,
-      linkedin
-    }));
-  }, [youtubeData, linkedInData]);
+    
+    const last30Days = channelData
+      .filter(d => new Date(d.day) >= days30Ago)
+      .sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime())
+      .map(d => ({
+        date: format(new Date(d.day), "MMM dd"),
+        views: d.views || 0,
+        watchHours: (d.watch_time_seconds || 0) / 3600,
+        revenue: Number(d.estimated_revenue) || 0,
+        subscribers: (d.subscribers_gained || 0) - (d.subscribers_lost || 0)
+      }));
+
+    return last30Days;
+  }, [channelData]);
 
   // Agents table columns
   const agentColumns = [{
@@ -185,7 +155,7 @@ const Overview = () => {
     label: "Duration",
     render: (value: number | null) => value ? `${value}ms` : "-"
   }];
-  if (analyticsLoading || agentsLoading) {
+  if (ytLoading || agentsLoading) {
     return <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>;
@@ -200,101 +170,59 @@ const Overview = () => {
 
       {/* KPI Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6 border-none shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-muted-foreground">Total YT Views</p>
-            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-          <p className="text-4xl font-bold mb-2">
-            {(kpis.ytViews30 / 1000000).toFixed(1)}M
-          </p>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className={`${kpis.ytViewsGrowth > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'} text-xs font-semibold`}>
-              {kpis.ytViewsGrowth > 0 ? "↗" : "↘"} {kpis.ytViewsGrowth > 0 ? "+" : ""}{Math.round(kpis.ytViewsGrowth)}%
-            </Badge>
-            <span className="text-xs text-muted-foreground">vs last 30 days</span>
-          </div>
-        </Card>
-
-        <Card className="p-6 border-none shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-muted-foreground">LI Impressions</p>
-            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-          <p className="text-4xl font-bold mb-2">
-            {(kpis.liImpressions30 / 1000000).toFixed(1)}M
-          </p>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className={`${kpis.liImpressionsGrowth > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'} text-xs font-semibold`}>
-              {kpis.liImpressionsGrowth > 0 ? "↗" : "↘"} {kpis.liImpressionsGrowth > 0 ? "+" : ""}{Math.round(kpis.liImpressionsGrowth)}%
-            </Badge>
-            <span className="text-xs text-muted-foreground">vs last 30 days</span>
-          </div>
-        </Card>
-
-        <Card className="p-6 border-none shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-muted-foreground">Engagement Rate</p>
-            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-          <p className="text-4xl font-bold mb-2">
-            {kpis.liEngagementRate.toFixed(1)}%
-          </p>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-primary/10 text-primary text-xs font-semibold">
-              ↗ +0.8%
-            </Badge>
-            <span className="text-xs text-muted-foreground">vs last 30 days</span>
-          </div>
-        </Card>
-
-        <Card className="p-6 border-none shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-muted-foreground">Avg Watch %</p>
-            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-              <TrendingDown className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-          <p className="text-4xl font-bold mb-2">
-            42%
-          </p>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-destructive/10 text-destructive text-xs font-semibold">
-              ↘ -2.1%
-            </Badge>
-            <span className="text-xs text-muted-foreground">vs last 30 days</span>
-          </div>
-        </Card>
+        <StatCard
+          label="Total Views (30d)"
+          value={kpis.views30 >= 1000000 ? `${(kpis.views30 / 1000000).toFixed(1)}M` : kpis.views30.toLocaleString()}
+          growth={kpis.viewsGrowth}
+          icon={Eye}
+          iconColor="primary"
+        />
+        <StatCard
+          label="Watch Hours (30d)"
+          value={kpis.watchHours30.toFixed(0)}
+          growth={kpis.watchGrowth}
+          icon={TrendingUp}
+          iconColor="success"
+        />
+        <StatCard
+          label="Net Subscribers (30d)"
+          value={kpis.subscribers30 >= 0 ? `+${kpis.subscribers30.toLocaleString()}` : kpis.subscribers30.toLocaleString()}
+          growth={kpis.subsGrowth}
+          icon={Users}
+          iconColor="warning"
+        />
+        <StatCard
+          label="Revenue (30d)"
+          value={`$${kpis.revenue30.toFixed(2)}`}
+          growth={kpis.revenueGrowth}
+          icon={DollarSign}
+          iconColor="secondary"
+        />
       </div>
 
       {/* 30-Day Growth Chart */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="mb-1">30-Day Platform Trends</h2>
+            <h2 className="mb-1">30-Day Performance Trends</h2>
           </div>
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={350}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="date" className="text-xs" />
             <YAxis yAxisId="left" className="text-xs" />
             <YAxis yAxisId="right" orientation="right" className="text-xs" />
             <Tooltip contentStyle={{
-            backgroundColor: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "8px"
-          }} />
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "8px"
+            }} />
             <Legend />
-            <Line yAxisId="left" type="monotone" dataKey="youtube" stroke="hsl(var(--danger))" strokeWidth={2} name="YouTube Views" dot={false} />
-            <Line yAxisId="right" type="monotone" dataKey="linkedin" stroke="hsl(var(--linkedin))" strokeWidth={2} name="LinkedIn Impressions" dot={false} />
+            <Line yAxisId="left" type="monotone" dataKey="views" stroke="hsl(var(--primary))" strokeWidth={2} name="Views" dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="watchHours" stroke="hsl(var(--success))" strokeWidth={2} name="Watch Hours" dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="hsl(var(--warning))" strokeWidth={2} name="Revenue ($)" dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </Card>
