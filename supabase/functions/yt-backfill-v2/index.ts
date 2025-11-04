@@ -136,20 +136,27 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
     // Extract token from "Bearer <token>"
     const token = authHeader.replace('Bearer ', '');
+    console.log('Token length:', token.length);
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    console.log('Env present:', { hasUrl: !!supabaseUrl, hasAnonKey: !!supabaseAnonKey });
 
     const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      supabaseUrl,
+      supabaseAnonKey
     );
 
     // Pass the token directly to getUser()
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    console.log('Auth result:', { hasUser: !!user, authError: authError?.message });
     
     if (authError || !user) {
       console.error('Authentication failed:', authError);
