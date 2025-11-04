@@ -148,23 +148,27 @@ Deno.serve(async (req) => {
     const { mode, fromDate, toDate, metrics: customMetrics, dimensions: customDimensions } = body;
 
     // Default dates
-    const today = new Date().toISOString().split('T')[0];
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = new Date();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     
-    let actualFromDate = fromDate || '2015-01-01';
-    let actualToDate = toDate || today;
+    let actualFromDate: string;
+    let actualToDate: string;
     let metrics = customMetrics;
     let dimensions = customDimensions;
 
     // Set defaults based on mode
     if (mode === 'channel_monthly') {
+      // For monthly dimension, dates must align to month boundaries
+      const endDate = toDate ? new Date(toDate) : today;
+      const lastDayOfMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+      
       actualFromDate = fromDate || '2015-01-01';
-      actualToDate = toDate || today;
+      actualToDate = toDate || lastDayOfMonth.toISOString().split('T')[0];
       metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,subscribersGained,subscribersLost';
       dimensions = dimensions || 'month';
     } else if (mode === 'video_daily') {
-      actualFromDate = fromDate || thirtyDaysAgo;
-      actualToDate = toDate || today;
+      actualFromDate = fromDate || thirtyDaysAgo.toISOString().split('T')[0];
+      actualToDate = toDate || today.toISOString().split('T')[0];
       metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments';
       dimensions = dimensions || 'video,day';
     } else {
