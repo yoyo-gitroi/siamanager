@@ -81,7 +81,7 @@ async function queryYouTubeAnalytics(
   dimensions: string
 ): Promise<any> {
   const url = new URL('https://youtubeanalytics.googleapis.com/v2/reports');
-  url.searchParams.set('ids', `channel==${channelId}`);
+  url.searchParams.set('ids', `channel==MINE`);
   url.searchParams.set('startDate', startDate);
   url.searchParams.set('endDate', endDate);
   url.searchParams.set('metrics', metrics);
@@ -158,39 +158,63 @@ Deno.serve(async (req) => {
 
     // Set defaults based on mode
     if (mode === 'channel_monthly') {
-      // Calculate last completed month (previous month) to avoid timezone issues
+      // Calculate last completed month (previous month) in local time to avoid TZ issues
       const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth(); // 0-indexed (0 = January, 10 = November)
-      
+      const currentMonth = today.getMonth(); // 0-indexed
+
       let lastCompletedYear = currentYear;
       let lastCompletedMonth = currentMonth - 1;
       if (lastCompletedMonth < 0) {
         lastCompletedMonth = 11;
         lastCompletedYear -= 1;
       }
-      
-      // Get last day of previous month
-      const lastDayOfPrevMonth = new Date(lastCompletedYear, lastCompletedMonth + 1, 0).getDate();
-      const lastCompletedMonthEndStr = `${lastCompletedYear}-${String(lastCompletedMonth + 1).padStart(2, '0')}-${String(lastDayOfPrevMonth).padStart(2, '0')}`;
-      
+
+      // Helper: first day of month string
+      const firstOfMonthStr = (d: Date) => {
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        return `${y}-${String(m + 1).padStart(2, '0')}-01`;
+      };
+      // Helper: last day of month string
+      const lastOfMonthStr = (y: number, m0: number) => {
+        const lastDay = new Date(y, m0 + 1, 0).getDate();
+        return `${y}-${String(m0 + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      };
+
+      const lastCompletedMonthEndStr = lastOfMonthStr(lastCompletedYear, lastCompletedMonth);
       console.log(`Today: ${today.toISOString().split('T')[0]}, Last completed month end: ${lastCompletedMonthEndStr}`);
-      
-      actualFromDate = fromDate || '2015-01-01';
-      actualToDate = toDate || lastCompletedMonthEndStr;
-      
-      // Cap toDate at last completed month if user provided a future date
-      if (toDate && toDate > lastCompletedMonthEndStr) {
-        console.warn(`Requested toDate ${toDate} is beyond last completed month, capping at ${lastCompletedMonthEndStr}`);
+
+      // Align provided dates to month boundaries
+      const startBase = fromDate ? new Date(fromDate) : new Date('2015-01-01');
+      const startMonthStartStr = firstOfMonthStr(new Date(startBase.getFullYear(), startBase.getMonth(), 1));
+
+      if (toDate) {
+        const endBase = new Date(toDate);
+        const requestedEndMonthEndStr = lastOfMonthStr(endBase.getFullYear(), endBase.getMonth());
+        actualToDate = requestedEndMonthEndStr > lastCompletedMonthEndStr
+          ? lastCompletedMonthEndStr
+          : requestedEndMonthEndStr;
+      } else {
         actualToDate = lastCompletedMonthEndStr;
       }
 
-      metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,subscribersGained,subscribersLost';
+      actualFromDate = startMonthStartStr;
+
+      // Use metrics supported for channel-monthly reports
+      metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost';
       dimensions = dimensions || 'month';
     } else if (mode === 'video_daily') {
-      actualFromDate = fromDate || thirtyDaysAgo.toISOString().split('T')[0];
-      actualToDate = toDate || today.toISOString().split('T')[0];
-      metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments';
-      dimensions = dimensions || 'video,day';
+      // Last 30 days ending yesterday
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const thirtyDaysAgoLocal = new Date(yesterday);
+      thirtyDaysAgoLocal.setDate(thirtyDaysAgoLocal.getDate() - 30);
+
+      actualFromDate = fromDate || thirtyDaysAgoLocal.toISOString().split('T')[0];
+      actualToDate = toDate || yesterday.toISOString().split('T')[0];
+      // Use metrics supported for video+day reports
+      metrics = metrics || 'views,estimatedMinutesWatched,averageViewDuration,likes,comments';
+      dimensions = dimensions || 'day,video';
     } else {
       throw new Error('Invalid mode. Use "channel_monthly" or "video_daily"');
     }
