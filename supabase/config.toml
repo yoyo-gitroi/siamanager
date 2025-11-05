@@ -18,5 +18,8 @@ verify_jwt = true
 [functions.yt-backfill]
 verify_jwt = true
 
+[functions.yt-backfill-v2]
+verify_jwt = true
+
 [functions.yt-sync-daily]
 verify_jwt = true

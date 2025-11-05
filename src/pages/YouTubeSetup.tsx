@@ -75,15 +75,18 @@ export default function YouTubeSetup() {
   const handleBackfill = async () => {
     setBackfilling(true);
     try {
-      const { data, error } = await supabase.functions.invoke('yt-backfill', {
-        body: { fromDate: '2012-01-01' }
+      const { data, error } = await supabase.functions.invoke('yt-backfill-v2', {
+        body: { 
+          fromDate: '2024-01-01',
+          toDate: new Date().toISOString().split('T')[0]
+        }
       });
 
       if (error) throw error;
 
       toast({
         title: "Backfill Complete",
-        description: `Synced ${data.totalChannelRows} channel days and ${data.totalVideoRows} video days`,
+        description: `Synced ${data.channelRows} channel days and ${data.videoRows} video days`,
       });
     } catch (error) {
       console.error('Backfill error:', error);
