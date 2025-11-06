@@ -102,6 +102,7 @@ export function YouTubeDataSummary() {
     };
 
     fetchDataStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const populatedTables = tableStatuses.filter(t => t.status === 'populated').length;

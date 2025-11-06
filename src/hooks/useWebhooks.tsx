@@ -13,6 +13,7 @@ export const useWebhooks = (userId: string | undefined) => {
     }
 
     fetchWebhooks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchWebhooks = async () => {

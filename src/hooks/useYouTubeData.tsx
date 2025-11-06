@@ -92,6 +92,7 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
     }
 
     fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, daysBack]);
 
   const fetchAllData = async () => {

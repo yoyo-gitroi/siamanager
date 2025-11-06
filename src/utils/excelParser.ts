@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export interface LinkedInRecord {
   date: string;
@@ -22,22 +22,32 @@ export async function parseLinkedInExcel(filePath: string): Promise<LinkedInReco
   try {
     const response = await fetch(filePath);
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
+
     // Get the second sheet (Page 2) which has the daily data
-    const sheetName = workbook.SheetNames[1];
-    const worksheet = workbook.Sheets[sheetName];
-    
-    // Convert to JSON, skipping the header row
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-    
-    // Skip header row and map to our interface
-    const records: LinkedInRecord[] = jsonData.slice(1).map(row => ({
-      date: row[0] || '',
-      impressions: Number(row[1]) || 0,
-      engagement: Number(row[2]) || 0,
-    })).filter(record => record.date); // Filter out empty rows
-    
+    const worksheet = workbook.worksheets[1];
+    if (!worksheet) {
+      throw new Error('LinkedIn data sheet not found');
+    }
+
+    const records: LinkedInRecord[] = [];
+
+    // Skip header row (row 1), start from row 2
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header
+
+      const date = row.getCell(1).value?.toString() || '';
+      if (!date) return; // Skip empty rows
+
+      records.push({
+        date,
+        impressions: Number(row.getCell(2).value) || 0,
+        engagement: Number(row.getCell(3).value) || 0,
+      });
+    });
+
     return records;
   } catch (error) {
     console.error('Error parsing LinkedIn Excel:', error);
@@ -49,31 +59,40 @@ export async function parseYouTubeExcel(filePath: string): Promise<YouTubeRecord
   try {
     const response = await fetch(filePath);
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
+
     // Get the first sheet
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    
-    // Convert to JSON
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-    
-    // Skip header row and the "Total" row, map to our interface
-    const records: YouTubeRecord[] = jsonData.slice(2).map(row => {
-      const videoId = row[0] || '';
-      return {
-        video_title: row[1] || '',
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error('YouTube data sheet not found');
+    }
+
+    const records: YouTubeRecord[] = [];
+
+    // Skip header row (row 1) and total row (row 2), start from row 3
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber <= 2) return; // Skip header and total row
+
+      const videoTitle = row.getCell(2).value?.toString() || '';
+      if (!videoTitle || videoTitle === 'Total') return; // Skip empty rows and total
+
+      const videoId = row.getCell(1).value?.toString() || '';
+
+      records.push({
+        video_title: videoTitle,
         video_url: videoId ? `https://youtube.com/watch?v=${videoId}` : '',
-        publish_date: row[2] || '',
-        duration: Number(row[3]) || 0,
-        views: Number(row[4]) || 0,
-        watch_time_hours: Number(row[5]) || 0,
-        subscribers: Number(row[6]) || 0,
-        impressions: Number(row[7]) || 0,
-        ctr: Number(row[8]) || 0,
-      };
-    }).filter(record => record.video_title && record.video_title !== 'Total'); // Filter out empty rows and total
-    
+        publish_date: row.getCell(3).value?.toString() || '',
+        duration: Number(row.getCell(4).value) || 0,
+        views: Number(row.getCell(5).value) || 0,
+        watch_time_hours: Number(row.getCell(6).value) || 0,
+        subscribers: Number(row.getCell(7).value) || 0,
+        impressions: Number(row.getCell(8).value) || 0,
+        ctr: Number(row.getCell(9).value) || 0,
+      });
+    });
+
     return records;
   } catch (error) {
     console.error('Error parsing YouTube Excel:', error);
