@@ -57,7 +57,8 @@ export default function OAuthCallback() {
       } catch (err) {
         console.error('Callback error:', err);
         setStatus('error');
-        setMessage(err.message || 'Failed to complete authorization');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to complete authorization';
+        setMessage(errorMessage);
         setTimeout(() => navigate('/youtube-setup'), 3000);
       }
     };

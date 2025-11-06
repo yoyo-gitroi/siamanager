@@ -86,7 +86,7 @@ const GrowthInsights = () => {
 
     youtubeData.forEach((video) => {
       const duration = video.watch_time_hours * 60 / (video.views || 1); // avg duration per view
-      let bucket;
+      let bucket: 'Short (< 5 min)' | 'Medium (5-15 min)' | 'Long (> 15 min)';
       if (duration < 5) bucket = 'Short (< 5 min)';
       else if (duration < 15) bucket = 'Medium (5-15 min)';
       else bucket = 'Long (> 15 min)';

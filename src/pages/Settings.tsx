@@ -18,11 +18,11 @@ interface YouTubeChannel {
 }
 
 interface SyncState {
-  last_sync_date: string;
-  last_sync_at: string;
-  status: string;
-  rows_inserted: number;
-  rows_updated: number;
+  last_sync_date: string | null;
+  last_sync_at: string | null;
+  status: string | null;
+  rows_inserted: number | null;
+  rows_updated: number | null;
 }
 
 const Settings = () => {
@@ -375,8 +375,8 @@ const Settings = () => {
           const { data: syncState } = await supabase
             .from('youtube_sync_state')
             .select('*')
-            .eq('user_id', user?.id)
-            .eq('channel_id', savedChannel)
+            .eq('user_id', user?.id || '')
+            .eq('channel_id', savedChannel || '')
             .maybeSingle();
           
           if (syncState) {
@@ -464,8 +464,8 @@ const Settings = () => {
         const { data: syncState } = await supabase
           .from('youtube_sync_state')
           .select('*')
-          .eq('user_id', user?.id)
-          .eq('channel_id', savedChannel)
+          .eq('user_id', user?.id || '')
+          .eq('channel_id', savedChannel || '')
           .maybeSingle();
         
         if (syncState) {
@@ -505,8 +505,8 @@ const Settings = () => {
         const { data: syncState } = await supabase
           .from('youtube_sync_state')
           .select('*')
-          .eq('user_id', user?.id)
-          .eq('channel_id', savedChannel)
+          .eq('user_id', user?.id || '')
+          .eq('channel_id', savedChannel || '')
           .maybeSingle();
         
         if (syncState) {
@@ -851,11 +851,11 @@ const Settings = () => {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-muted-foreground">Last Sync:</span>
-                            <p className="font-medium">{new Date(syncLogs.last_sync_at).toLocaleString()}</p>
+                            <p className="font-medium">{syncLogs.last_sync_at ? new Date(syncLogs.last_sync_at).toLocaleString() : 'Never'}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Date:</span>
-                            <p className="font-medium">{syncLogs.last_sync_date}</p>
+                            <p className="font-medium">{syncLogs.last_sync_date || 'N/A'}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Status:</span>

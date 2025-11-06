@@ -66,8 +66,8 @@ export function YouTubeDataSummary() {
 
                 if (!rangeError && !maxError && data?.[0] && maxData?.[0]) {
                   dateRange = {
-                    min: data[0][table.dateColumn] || '',
-                    max: maxData[0][table.dateColumn] || '',
+                    min: (data[0] as any)[table.dateColumn] || '',
+                    max: (maxData[0] as any)[table.dateColumn] || '',
                   };
                 }
               }

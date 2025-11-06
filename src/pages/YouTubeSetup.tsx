@@ -63,9 +63,10 @@ export default function YouTubeSetup() {
       }
     } catch (error) {
       console.error('OAuth error:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to start OAuth flow";
       toast({
         title: "Error",
-        description: error.message || "Failed to start OAuth flow",
+        description: errorMessage,
         variant: "destructive",
       });
       setLoading(false);
@@ -90,9 +91,10 @@ export default function YouTubeSetup() {
       });
     } catch (error) {
       console.error('Backfill error:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to backfill data";
       toast({
         title: "Error",
-        description: error.message || "Failed to backfill data",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -112,9 +114,10 @@ export default function YouTubeSetup() {
       });
     } catch (error) {
       console.error('Daily sync error:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to sync data";
       toast({
         title: "Error",
-        description: error.message || "Failed to sync data",
+        description: errorMessage,
         variant: "destructive",
       });
     }

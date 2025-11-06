@@ -63,7 +63,14 @@ export const useAnalytics = (userId: string | undefined) => {
 
       // Use DB data if available, otherwise fall back to Excel data
       if (linkedIn.data && linkedIn.data.length > 0) {
-        setLinkedInData(linkedIn.data);
+        const mappedLinkedIn = linkedIn.data.map(item => ({
+          date: item.date,
+          impressions: item.impressions || 0,
+          engagement: item.engagement || 0,
+          followers: item.followers || 0,
+          reach: item.reach || 0,
+        }));
+        setLinkedInData(mappedLinkedIn);
       } else {
         setLinkedInData(excelLinkedIn);
       }
@@ -71,8 +78,14 @@ export const useAnalytics = (userId: string | undefined) => {
       if (youtube.data && youtube.data.length > 0) {
         // Map DB records to include calculated engagement
         const mappedYoutube = youtube.data.map(v => ({
-          ...v,
-          engagement: v.engagement || Math.round(v.views * 0.05)
+          video_title: v.video_title || '',
+          video_url: v.video_url || undefined,
+          publish_date: v.publish_date || '',
+          views: v.views || 0,
+          watch_time_hours: v.watch_time_hours || 0,
+          impressions: v.impressions || 0,
+          ctr: v.ctr || 0,
+          engagement: v.engagement || Math.round((v.views || 0) * 0.05)
         }));
         setYouTubeData(mappedYoutube);
       } else {

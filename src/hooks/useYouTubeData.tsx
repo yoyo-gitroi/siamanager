@@ -113,7 +113,15 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .order("day", { ascending: false });
 
       if (channelError) throw channelError;
-      setChannelData(channelRows || []);
+      const mappedChannelData = (channelRows || []).map(row => ({
+        day: row.day,
+        views: row.views || 0,
+        watch_time_seconds: row.watch_time_seconds || 0,
+        subscribers_gained: row.subscribers_gained || 0,
+        subscribers_lost: row.subscribers_lost || 0,
+        estimated_revenue: row.estimated_revenue || 0,
+      }));
+      setChannelData(mappedChannelData);
 
       // Fetch video daily data
       const { data: videoRows, error: videoError } = await supabase
@@ -124,7 +132,19 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .order("day", { ascending: false });
 
       if (videoError) throw videoError;
-      setVideoData(videoRows || []);
+      const mappedVideoData = (videoRows || []).map(row => ({
+        channel_id: row.channel_id,
+        video_id: row.video_id,
+        day: row.day,
+        views: row.views || 0,
+        watch_time_seconds: row.watch_time_seconds || 0,
+        avg_view_duration_seconds: row.avg_view_duration_seconds || 0,
+        impressions: row.impressions || 0,
+        click_through_rate: row.click_through_rate || 0,
+        likes: row.likes || 0,
+        comments: row.comments || 0,
+      }));
+      setVideoData(mappedVideoData);
 
       // Fetch video metadata
       const { data: metadataRows, error: metadataError } = await supabase
@@ -134,7 +154,16 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .order("published_at", { ascending: false });
 
       if (metadataError) throw metadataError;
-      setVideoMetadata(metadataRows || []);
+      const mappedMetadata = (metadataRows || []).map(row => ({
+        video_id: row.video_id,
+        title: row.title || '',
+        description: row.description || '',
+        published_at: row.published_at || '',
+        duration_seconds: row.duration_seconds || 0,
+        thumbnail_url: row.thumbnail_url || '',
+        tags: row.tags || [],
+      }));
+      setVideoMetadata(mappedMetadata);
 
       // Fetch revenue data
       const { data: revenueRows, error: revenueError } = await supabase
@@ -145,7 +174,14 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .order("day", { ascending: false });
 
       if (revenueError) throw revenueError;
-      setRevenueData(revenueRows || []);
+      const mappedRevenue = (revenueRows || []).map(row => ({
+        day: row.day,
+        estimated_revenue: row.estimated_revenue || 0,
+        ad_impressions: row.ad_impressions || 0,
+        cpm: row.cpm || 0,
+        playback_based_cpm: row.playback_based_cpm || 0,
+      }));
+      setRevenueData(mappedRevenue);
 
       // Fetch demographics (quarterly data - always get recent data regardless of filter)
       const { data: demoRows, error: demoError } = await supabase
@@ -156,7 +192,13 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .limit(500);
 
       if (demoError) throw demoError;
-      setDemographics(demoRows || []);
+      const mappedDemo = (demoRows || []).map(row => ({
+        day: row.day,
+        age_group: row.age_group || '',
+        gender: row.gender || '',
+        viewer_percentage: row.viewer_percentage || 0,
+      }));
+      setDemographics(mappedDemo);
 
       // Fetch geography (quarterly data - always get recent data)
       const { data: geoRows, error: geoError } = await supabase
@@ -167,7 +209,14 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .limit(200);
 
       if (geoError) throw geoError;
-      setGeography(geoRows || []);
+      const mappedGeo = (geoRows || []).map(row => ({
+        day: row.day,
+        country: row.country || '',
+        province: row.province || '',
+        views: row.views || 0,
+        watch_time_seconds: row.watch_time_seconds || 0,
+      }));
+      setGeography(mappedGeo);
 
       // Fetch traffic sources (quarterly data - always get recent data)
       const { data: trafficRows, error: trafficError } = await supabase
@@ -178,7 +227,14 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .limit(200);
 
       if (trafficError) throw trafficError;
-      setTrafficSources(trafficRows || []);
+      const mappedTraffic = (trafficRows || []).map(row => ({
+        day: row.day,
+        source_type: row.source_type || '',
+        source_detail: row.source_detail || '',
+        views: row.views || 0,
+        watch_time_seconds: row.watch_time_seconds || 0,
+      }));
+      setTrafficSources(mappedTraffic);
 
       // Fetch device stats (quarterly data - always get recent data)
       const { data: deviceRows, error: deviceError } = await supabase
@@ -189,7 +245,14 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
         .limit(200);
 
       if (deviceError) throw deviceError;
-      setDeviceStats(deviceRows || []);
+      const mappedDevices = (deviceRows || []).map(row => ({
+        day: row.day,
+        device_type: row.device_type || '',
+        operating_system: row.operating_system || '',
+        views: row.views || 0,
+        watch_time_seconds: row.watch_time_seconds || 0,
+      }));
+      setDeviceStats(mappedDevices);
 
     } catch (err: any) {
       console.error("Error fetching YouTube data:", err);

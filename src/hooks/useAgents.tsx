@@ -116,12 +116,12 @@ export const useAgents = () => {
     // Create run record
     const { data: runData, error: runError } = await supabase
       .from("agent_runs")
-      .insert({
+      .insert([{
         agent_id: agentId,
-        user_id: uid,
-        status: "running",
+        user_id: uid || '',
+        status: "running" as const,
         request_body: customPayload || agent.payload_template || {},
-      })
+      }])
       .select()
       .single();
 

@@ -49,7 +49,10 @@ export default function YouTubeDataView() {
         .maybeSingle();
       
       if (data) {
-        setSyncState(data);
+        setSyncState({
+          status: data.status || 'unknown',
+          last_error: data.last_error,
+        });
       }
     };
     
