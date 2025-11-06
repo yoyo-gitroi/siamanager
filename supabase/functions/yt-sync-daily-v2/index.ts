@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
     }
 
     // Video-level sync - fetch basic metrics first
-    const videoMetricsBasic = 'views,estimatedMinutesWatched,averageViewDuration,likes,comments';
+    const videoMetricsBasic = 'views,estimatedMinutesWatched,averageViewDuration';
 
     const requestVideo = {
       channelId,
@@ -275,8 +275,8 @@ Deno.serve(async (req) => {
           avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
           impressions: impressions?.impressions || 0,
           click_through_rate: impressions?.ctr || 0,
-          likes: row[columnMap.get('likes') as number] || 0,
-          comments: row[columnMap.get('comments') as number] || 0,
+          likes: 0,
+          comments: 0,
         };
       });
 
