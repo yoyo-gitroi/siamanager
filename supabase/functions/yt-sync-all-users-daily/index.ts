@@ -176,29 +176,61 @@ Deno.serve(async (req) => {
           dateStr,
           dateStr,
           videoMetricsBasic,
-          'video,day'
+          'day,video'
         );
 
         await supabase.from('youtube_raw_archive').insert({
           user_id: token.user_id,
           channel_id: token.channel_id,
           report_type: 'daily_video',
-          request_json: { channelId: token.channel_id, startDate: dateStr, endDate: dateStr, metrics: videoMetricsBasic, dimensions: 'video,day' },
+          request_json: { channelId: token.channel_id, startDate: dateStr, endDate: dateStr, metrics: videoMetricsBasic, dimensions: 'day,video' },
           response_json: videoData,
         });
 
-        // Note: Impression metrics are not available at video level in YouTube Analytics API
-        // They can only be fetched at channel level
+        // Try to fetch impression metrics separately (may not be available for all channels)
+        let impressionData: any = null;
+        try {
+          impressionData = await queryYouTubeAnalytics(
+            accessToken,
+            token.channel_id,
+            dateStr,
+            dateStr,
+            'impressions,impressionClickThroughRate',
+            'day,video'
+          );
+          console.log('Impression data fetched successfully');
+        } catch (error) {
+          console.log('Impression metrics not available for this channel:', error instanceof Error ? error.message : 'Unknown error');
+          // Continue without impression data
+        }
+
         let videoRows = 0;
         if (videoData.rows && videoData.rows.length > 0) {
           const columnMap = new Map(
             videoData.columnHeaders.map((h: any, i: number) => [h.name, i])
           );
 
+          // Create impression map if data is available
+          const impressionMap = new Map();
+          if (impressionData?.rows && impressionData.rows.length > 0) {
+            const impColumnMap = new Map(
+              impressionData.columnHeaders.map((h: any, i: number) => [h.name, i])
+            );
+            impressionData.rows.forEach((row: any) => {
+              const key = `${row[impColumnMap.get('video') as number]}_${row[impColumnMap.get('day') as number]}`;
+              impressionMap.set(key, {
+                impressions: row[impColumnMap.get('impressions') as number] || 0,
+                ctr: row[impColumnMap.get('impressionClickThroughRate') as number] || 0,
+              });
+            });
+          }
+
           const rows = videoData.rows.map((row: any) => {
             const videoId = row[columnMap.get('video') as number];
             const day = row[columnMap.get('day') as number];
-            
+            const key = `${videoId}_${day}`;
+            const impressions = impressionMap.get(key);
+
             return {
               user_id: token.user_id,
               channel_id: token.channel_id,
@@ -207,8 +239,8 @@ Deno.serve(async (req) => {
               views: row[columnMap.get('views') as number] || 0,
               watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
               avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-              impressions: 0,
-              click_through_rate: 0,
+              impressions: impressions?.impressions || 0,
+              click_through_rate: impressions?.ctr || 0,
               likes: row[columnMap.get('likes') as number] || 0,
               comments: row[columnMap.get('comments') as number] || 0,
             };
