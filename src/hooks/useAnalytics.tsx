@@ -41,6 +41,7 @@ export const useAnalytics = (userId: string | undefined) => {
     }
 
     fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, excelLoading, excelLinkedIn, excelYoutube]);
 
   const fetchAnalytics = async () => {

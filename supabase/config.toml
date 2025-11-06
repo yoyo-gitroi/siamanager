@@ -7,7 +7,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.upload-files-to-assistant]
-verify_jwt = false
+verify_jwt = true
 
 [functions.google-oauth-start]
 verify_jwt = true
