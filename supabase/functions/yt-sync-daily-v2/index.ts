@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       startDate: dateStr,
       endDate: dateStr,
       metrics: videoMetricsBasic,
-      dimensions: 'video,day'
+      dimensions: 'day,video'
     };
 
     const videoData = await queryYouTubeAnalytics(
@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
       dateStr,
       dateStr,
       videoMetricsBasic,
-      'video,day'
+      'day,video'
     );
 
     await supabase.from('youtube_raw_archive').insert({
@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
         dateStr,
         dateStr,
         'impressions,impressionClickThroughRate',
-        'video,day'
+        'day,video'
       );
       console.log('Impression data fetched successfully');
     } catch (error) {
