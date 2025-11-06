@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
     
     // Safe metrics per report type - matching table schema
     const channelMetrics = 'views,estimatedMinutesWatched,subscribersGained,subscribersLost';
-    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,impressions,impressionClickThroughRate,likes,comments';
+    const videoMetricsBasic = 'views,estimatedMinutesWatched,averageViewDuration,likes,comments';
     const minimalMetrics = 'views,estimatedMinutesWatched';
     
     const chunks = getMonthChunks(actualFromDate, endDate);
@@ -331,7 +331,7 @@ Deno.serve(async (req) => {
         channelId,
         startDate: chunk.start,
         endDate: chunk.end,
-        metrics: videoMetrics,
+        metrics: videoMetricsBasic,
         dimensions: 'day,video'
       };
 
@@ -341,7 +341,7 @@ Deno.serve(async (req) => {
           channelId,
           chunk.start,
           chunk.end,
-          videoMetrics,
+          videoMetricsBasic,
           'day,video',
           minimalMetrics
         );
@@ -359,24 +359,63 @@ Deno.serve(async (req) => {
           response_json: data,
         });
 
+        // Try to fetch impression metrics separately (may not be available for all channels)
+        let impressionData: any = null;
+        try {
+          impressionData = await queryYouTubeAnalytics(
+            accessToken,
+            channelId,
+            chunk.start,
+            chunk.end,
+            'impressions,impressionClickThroughRate',
+            'day,video'
+          );
+          console.log(`Impression data fetched for chunk ${chunk.start} to ${chunk.end}`);
+        } catch (error) {
+          console.log(`Impression metrics not available for chunk ${chunk.start} to ${chunk.end}:`, error instanceof Error ? error.message : 'Unknown error');
+          // Continue without impression data
+        }
+
         if (data.rows && data.rows.length > 0) {
           const columnMap = new Map(
             data.columnHeaders.map((h: any, i: number) => [h.name, i])
           );
 
-          const rows = data.rows.map((row: any) => ({
-            user_id: userId,
-            channel_id: channelId,
-            video_id: row[columnMap.get('video') as number],
-            day: row[columnMap.get('day') as number],
-            views: row[columnMap.get('views') as number] || 0,
-            watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-            avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-            impressions: row[columnMap.get('impressions') as number] || 0,
-            click_through_rate: row[columnMap.get('impressionClickThroughRate') as number] || 0,
-            likes: row[columnMap.get('likes') as number] || 0,
-            comments: row[columnMap.get('comments') as number] || 0,
-          }));
+          // Create impression map if data is available
+          const impressionMap = new Map();
+          if (impressionData?.rows && impressionData.rows.length > 0) {
+            const impColumnMap = new Map(
+              impressionData.columnHeaders.map((h: any, i: number) => [h.name, i])
+            );
+            impressionData.rows.forEach((row: any) => {
+              const key = `${row[impColumnMap.get('day') as number]}_${row[impColumnMap.get('video') as number]}`;
+              impressionMap.set(key, {
+                impressions: row[impColumnMap.get('impressions') as number] || 0,
+                ctr: row[impColumnMap.get('impressionClickThroughRate') as number] || 0,
+              });
+            });
+          }
+
+          const rows = data.rows.map((row: any) => {
+            const videoId = row[columnMap.get('video') as number];
+            const day = row[columnMap.get('day') as number];
+            const key = `${day}_${videoId}`;
+            const impressions = impressionMap.get(key);
+
+            return {
+              user_id: userId,
+              channel_id: channelId,
+              video_id: videoId,
+              day: day,
+              views: row[columnMap.get('views') as number] || 0,
+              watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
+              avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
+              impressions: impressions?.impressions || 0,
+              click_through_rate: impressions?.ctr || 0,
+              likes: row[columnMap.get('likes') as number] || 0,
+              comments: row[columnMap.get('comments') as number] || 0,
+            };
+          });
 
           const { error } = await supabase
             .from('yt_video_daily')
@@ -392,7 +431,7 @@ Deno.serve(async (req) => {
         const errMsg = err instanceof Error ? err.message : String(err);
         console.error('Video chunk failed', { start: chunk.start, end: chunk.end }, errMsg);
         failedChunks.push({ type: 'video', start: chunk.start, end: chunk.end, error: errMsg });
-        
+
         // Archive error
         await supabase.from('youtube_raw_archive').insert({
           user_id: userId,
