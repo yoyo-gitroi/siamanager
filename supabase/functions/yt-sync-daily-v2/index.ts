@@ -106,19 +106,29 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: missing JWT' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
+
+    // Extract token from "Bearer <token>"
+    const token = authHeader.replace('Bearer ', '');
 
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    // Pass the token explicitly to getUser()
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
     
     if (authError || !user) {
-      throw new Error('Unauthorized');
+      console.error('Authentication failed:', authError);
+      return new Response(
+        JSON.stringify({ error: `Unauthorized: ${authError?.message || 'invalid JWT'}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
 
     const userId = user.id;
@@ -184,7 +194,7 @@ Deno.serve(async (req) => {
     }
 
     // Video-level sync with impressions and CTR
-    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,cardImpressions,cardClickThroughRate,likes,comments';
+    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,impressions,impressionClickThroughRate,likes,comments';
     
     const requestVideo = {
       channelId,
@@ -225,8 +235,8 @@ Deno.serve(async (req) => {
         views: row[columnMap.get('views') as number] || 0,
         watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
         avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-        impressions: row[columnMap.get('cardImpressions') as number] || 0,
-        click_through_rate: row[columnMap.get('cardClickThroughRate') as number] || 0,
+        impressions: row[columnMap.get('impressions') as number] || 0,
+        click_through_rate: row[columnMap.get('impressionClickThroughRate') as number] || 0,
         likes: row[columnMap.get('likes') as number] || 0,
         comments: row[columnMap.get('comments') as number] || 0,
       }));
@@ -243,6 +253,7 @@ Deno.serve(async (req) => {
       last_sync_at: new Date().toISOString(),
       status: 'completed',
       rows_inserted: channelRows + videoRows,
+      last_error: null,
     }, { onConflict: 'user_id,channel_id' });
 
     console.log(`Daily sync complete for ${dateStr}: ${channelRows} channel, ${videoRows} video rows`);
@@ -262,6 +273,36 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Daily sync error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Try to update sync state with error if we have user context
+    try {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAuth = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+        );
+        const { data: { user } } = await supabaseAuth.auth.getUser(token);
+        
+        if (user) {
+          const supabase = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+          );
+          
+          await supabase.from('youtube_sync_state').upsert({
+            user_id: user.id,
+            last_sync_at: new Date().toISOString(),
+            status: 'failed',
+            last_error: message,
+          }, { onConflict: 'user_id,channel_id', ignoreDuplicates: false });
+        }
+      }
+    } catch (stateError) {
+      console.error('Failed to update sync state:', stateError);
+    }
+    
     return new Response(
       JSON.stringify({ error: message }),
       { 

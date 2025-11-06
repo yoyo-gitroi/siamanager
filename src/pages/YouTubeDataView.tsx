@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeData } from "@/hooks/useYouTubeData";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
@@ -20,6 +20,7 @@ export default function YouTubeDataView() {
   const { user } = useAuth();
   const [daysBack, setDaysBack] = useState(30);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [syncState, setSyncState] = useState<{ status: string; last_error: string | null } | null>(null);
   const { toast } = useToast();
   
   const {
@@ -35,6 +36,25 @@ export default function YouTubeDataView() {
     error,
     refetch,
   } = useYouTubeData(user?.id, daysBack);
+
+  // Fetch sync state separately
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const fetchSyncState = async () => {
+      const { data } = await supabase
+        .from('youtube_sync_state')
+        .select('status, last_error')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (data) {
+        setSyncState(data);
+      }
+    };
+    
+    fetchSyncState();
+  }, [user?.id, channelData]);
 
   const {
     videoPerformance,
@@ -58,7 +78,11 @@ export default function YouTubeDataView() {
     try {
       const { data, error } = await supabase.functions.invoke('yt-sync-daily-v2');
       
-      if (error) throw error;
+      if (error) {
+        // Handle FunctionsHttpError - extract the actual error message
+        const errorMessage = error.message || error.context?.error || "Failed to sync data";
+        throw new Error(errorMessage);
+      }
       
       toast({
         title: "Sync Complete",
@@ -165,7 +189,8 @@ export default function YouTubeDataView() {
         loading={syncLoading}
         channelRows={channelData.length}
         videoRows={videoData.length}
-        status={error ? "error" : syncLoading ? "syncing" : "success"}
+        status={syncState?.status === 'failed' ? 'error' : syncLoading ? 'syncing' : 'success'}
+        errorMessage={syncState?.last_error}
       />
 
       {/* Overview KPIs */}

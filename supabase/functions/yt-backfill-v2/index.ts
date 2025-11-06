@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
     
     // Safe metrics per report type - matching table schema
     const channelMetrics = 'views,estimatedMinutesWatched,subscribersGained,subscribersLost';
-    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,cardImpressions,cardClickThroughRate,likes,comments';
+    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,impressions,impressionClickThroughRate,likes,comments';
     const minimalMetrics = 'views,estimatedMinutesWatched';
     
     const chunks = getMonthChunks(actualFromDate, endDate);
@@ -372,8 +372,8 @@ Deno.serve(async (req) => {
             views: row[columnMap.get('views') as number] || 0,
             watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
             avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-            impressions: row[columnMap.get('cardImpressions') as number] || 0,
-            click_through_rate: row[columnMap.get('cardClickThroughRate') as number] || 0,
+            impressions: row[columnMap.get('impressions') as number] || 0,
+            click_through_rate: row[columnMap.get('impressionClickThroughRate') as number] || 0,
             likes: row[columnMap.get('likes') as number] || 0,
             comments: row[columnMap.get('comments') as number] || 0,
           }));
@@ -415,6 +415,7 @@ Deno.serve(async (req) => {
       status: 'completed',
       rows_inserted: totalChannelRows + totalVideoRows,
       rows_updated: 0,
+      last_error: null,
     }, { onConflict: 'user_id,channel_id' });
 
     console.log(`Backfill complete: ${totalChannelRows} channel rows, ${totalVideoRows} video rows`);
@@ -437,6 +438,36 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Backfill error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Try to update sync state with error
+    try {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAuth = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+        );
+        const { data: { user } } = await supabaseAuth.auth.getUser(token);
+        
+        if (user) {
+          const supabase = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+          );
+          
+          await supabase.from('youtube_sync_state').upsert({
+            user_id: user.id,
+            last_sync_at: new Date().toISOString(),
+            status: 'failed',
+            last_error: message,
+          }, { onConflict: 'user_id,channel_id', ignoreDuplicates: false });
+        }
+      }
+    } catch (stateError) {
+      console.error('Failed to update sync state:', stateError);
+    }
+    
     return new Response(
       JSON.stringify({ error: message }),
       { 
