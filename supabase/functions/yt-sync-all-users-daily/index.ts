@@ -176,14 +176,14 @@ Deno.serve(async (req) => {
           dateStr,
           dateStr,
           videoMetricsBasic,
-          'video,day'
+          'day,video'
         );
 
         await supabase.from('youtube_raw_archive').insert({
           user_id: token.user_id,
           channel_id: token.channel_id,
           report_type: 'daily_video',
-          request_json: { channelId: token.channel_id, startDate: dateStr, endDate: dateStr, metrics: videoMetricsBasic, dimensions: 'video,day' },
+          request_json: { channelId: token.channel_id, startDate: dateStr, endDate: dateStr, metrics: videoMetricsBasic, dimensions: 'day,video' },
           response_json: videoData,
         });
 
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
             dateStr,
             dateStr,
             'impressions,impressionClickThroughRate',
-            'video,day'
+            'day,video'
           );
           console.log('Impression data fetched successfully');
         } catch (error) {
