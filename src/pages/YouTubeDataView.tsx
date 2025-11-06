@@ -1,176 +1,52 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useYouTubeData } from "@/hooks/useYouTubeData";
+import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DataTable from "@/components/DataTable";
-import { YouTubeDataSummary } from "@/components/YouTubeDataSummary";
-import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
-
-interface ChannelDaily {
-  channel_id: string;
-  day: string;
-  views: number;
-  watch_time_seconds: number;
-  subscribers_gained: number;
-  subscribers_lost: number;
-  estimated_revenue: number;
-}
-
-interface VideoDaily {
-  channel_id: string;
-  video_id: string;
-  day: string;
-  views: number;
-  watch_time_seconds: number;
-  avg_view_duration_seconds: number;
-  impressions: number;
-  click_through_rate: number;
-  likes: number;
-  comments: number;
-}
-
-const channelColumns = [
-  {
-    key: "day",
-    label: "Date",
-    sortable: true,
-    render: (value: string) => format(new Date(value), "MMM dd, yyyy"),
-  },
-  {
-    key: "views",
-    label: "Views",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-  {
-    key: "watch_time_seconds",
-    label: "Watch Time (hrs)",
-    sortable: true,
-    render: (value: number) => (value / 3600).toFixed(1),
-  },
-  {
-    key: "subscribers_gained",
-    label: "Subs Gained",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-  {
-    key: "subscribers_lost",
-    label: "Subs Lost",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-  {
-    key: "estimated_revenue",
-    label: "Revenue",
-    sortable: true,
-    render: (value: number) => `$${parseFloat(value.toString()).toFixed(2)}`,
-  },
-];
-
-const videoColumns = [
-  {
-    key: "day",
-    label: "Date",
-    sortable: true,
-    render: (value: string) => format(new Date(value), "MMM dd, yyyy"),
-  },
-  {
-    key: "video_id",
-    label: "Video ID",
-    render: (value: string) => (
-      <a
-        href={`https://youtube.com/watch?v=${value}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 hover:underline"
-      >
-        {value}
-      </a>
-    ),
-  },
-  {
-    key: "views",
-    label: "Views",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-  {
-    key: "watch_time_seconds",
-    label: "Watch Time (hrs)",
-    sortable: true,
-    render: (value: number) => (value / 3600).toFixed(1),
-  },
-  {
-    key: "avg_view_duration_seconds",
-    label: "Avg Duration (min)",
-    sortable: true,
-    render: (value: number) => (value / 60).toFixed(1),
-  },
-  {
-    key: "impressions",
-    label: "Impressions",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-  {
-    key: "click_through_rate",
-    label: "CTR",
-    sortable: true,
-    render: (value: number) => `${parseFloat(value.toString()).toFixed(2)}%`,
-  },
-  {
-    key: "likes",
-    label: "Likes",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-  {
-    key: "comments",
-    label: "Comments",
-    sortable: true,
-    render: (value: number) => value.toLocaleString(),
-  },
-];
+import { Button } from "@/components/ui/button";
+import MetricCard from "@/components/youtube/MetricCard";
+import PerformanceChart from "@/components/youtube/PerformanceChart";
+import VideoPerformanceTable from "@/components/youtube/VideoPerformanceTable";
+import AudienceInsightsPanel from "@/components/youtube/AudienceInsightsPanel";
+import ContentStrategyInsights from "@/components/youtube/ContentStrategyInsights";
+import SyncStatus from "@/components/youtube/SyncStatus";
+import { Loader2, Eye, Clock, Users, DollarSign, Target, ThumbsUp, Video } from "lucide-react";
 
 export default function YouTubeDataView() {
-  const [channelData, setChannelData] = useState<ChannelDaily[]>([]);
-  const [videoData, setVideoData] = useState<VideoDaily[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [daysBack, setDaysBack] = useState(30);
+  
+  const {
+    channelData,
+    videoData,
+    videoMetadata,
+    revenueData,
+    demographics,
+    geography,
+    trafficSources,
+    deviceStats,
+    loading,
+    error,
+    refetch,
+  } = useYouTubeData(user?.id, daysBack);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fetch channel data (last 30 days)
-      const { data: channelRows, error: channelError } = await supabase
-        .from("yt_channel_daily")
-        .select("*")
-        .order("day", { ascending: false })
-        .limit(30);
-
-      if (channelError) throw channelError;
-      setChannelData(channelRows || []);
-
-      // Fetch video data (last 30 days)
-      const { data: videoRows, error: videoError } = await supabase
-        .from("yt_video_daily")
-        .select("*")
-        .order("day", { ascending: false })
-        .limit(100);
-
-      if (videoError) throw videoError;
-      setVideoData(videoRows || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    videoPerformance,
+    currentMetrics,
+    periodComparison,
+    contentInsights,
+    audienceInsights,
+  } = useYouTubeAnalytics(
+    channelData,
+    videoData,
+    videoMetadata,
+    revenueData,
+    demographics,
+    geography,
+    trafficSources,
+    deviceStats
+  );
 
   if (loading) {
     return (
@@ -180,41 +56,157 @@ export default function YouTubeDataView() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="p-6 bg-danger/10 border-danger">
+          <p className="text-danger">Error loading data: {error}</p>
+          <Button onClick={refetch} className="mt-4">Retry</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const lastSync = channelData.length > 0 ? new Date(channelData[0].day) : null;
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">YouTube Analytics Data</h1>
-        <p className="text-muted-foreground">
-          Comprehensive view of your YouTube channel and video analytics
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">YouTube Studio Dashboard</h1>
+          <p className="text-muted-foreground">
+            Comprehensive analytics for your YouTube channel
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={daysBack === 7 ? "default" : "outline"}
+            onClick={() => setDaysBack(7)}
+            size="sm"
+          >
+            7 Days
+          </Button>
+          <Button
+            variant={daysBack === 30 ? "default" : "outline"}
+            onClick={() => setDaysBack(30)}
+            size="sm"
+          >
+            30 Days
+          </Button>
+          <Button
+            variant={daysBack === 90 ? "default" : "outline"}
+            onClick={() => setDaysBack(90)}
+            size="sm"
+          >
+            90 Days
+          </Button>
+        </div>
       </div>
 
-      <YouTubeDataSummary />
+      {/* Sync Status */}
+      <SyncStatus lastSync={lastSync} onRefresh={refetch} loading={loading} />
 
-      <Tabs defaultValue="channel" className="space-y-4">
+      {/* Overview KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          label="Total Views"
+          value={currentMetrics.totalViews.toLocaleString()}
+          growth={periodComparison.growth.views}
+          icon={Eye}
+          iconColor="primary"
+          subtitle={`Last ${daysBack} days`}
+        />
+        <MetricCard
+          label="Watch Hours"
+          value={currentMetrics.totalWatchHours.toFixed(1)}
+          growth={periodComparison.growth.watchHours}
+          icon={Clock}
+          iconColor="success"
+          subtitle={`${(currentMetrics.totalWatchHours / 24).toFixed(1)} days`}
+        />
+        <MetricCard
+          label="Net Subscribers"
+          value={currentMetrics.netSubscribers.toLocaleString()}
+          growth={periodComparison.growth.subscribers}
+          icon={Users}
+          iconColor="warning"
+          subtitle={`+${currentMetrics.totalSubscribersGained} -${currentMetrics.totalSubscribersLost}`}
+        />
+        <MetricCard
+          label="Estimated Revenue"
+          value={`$${currentMetrics.totalRevenue.toFixed(2)}`}
+          growth={periodComparison.growth.revenue}
+          icon={DollarSign}
+          iconColor="secondary"
+          subtitle={`Last ${daysBack} days`}
+        />
+      </div>
+
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <MetricCard
+          label="Average CTR"
+          value={`${currentMetrics.avgCTR.toFixed(2)}%`}
+          icon={Target}
+          iconColor="primary"
+          subtitle="Click-through rate"
+        />
+        <MetricCard
+          label="Engagement Rate"
+          value={`${currentMetrics.avgEngagementRate.toFixed(2)}%`}
+          icon={ThumbsUp}
+          iconColor="success"
+          subtitle={`${currentMetrics.totalEngagements.toLocaleString()} total engagements`}
+        />
+        <MetricCard
+          label="Total Videos"
+          value={currentMetrics.totalVideos.toLocaleString()}
+          icon={Video}
+          iconColor="warning"
+          subtitle="Published on channel"
+        />
+      </div>
+
+      {/* Performance Chart */}
+      <Card className="p-6">
+        <h2 className="mb-4">Performance Trends</h2>
+        <PerformanceChart
+          data={channelData}
+          metrics={["views", "watch_time", "subscribers", "revenue"]}
+          chartType="area"
+        />
+      </Card>
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="videos" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="channel">Channel Daily</TabsTrigger>
-          <TabsTrigger value="video">Video Daily</TabsTrigger>
+          <TabsTrigger value="videos">Video Performance</TabsTrigger>
+          <TabsTrigger value="audience">Audience Insights</TabsTrigger>
+          <TabsTrigger value="strategy">Content Strategy</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="channel">
+        <TabsContent value="videos">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Channel Daily Metrics</h2>
-            <DataTable
-              columns={channelColumns}
-              data={channelData}
+            <h2 className="mb-4">Top Performing Videos</h2>
+            <VideoPerformanceTable videos={videoPerformance} maxRows={50} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="audience">
+          <Card className="p-6">
+            <h2 className="mb-4">Audience Insights</h2>
+            <AudienceInsightsPanel
+              demographics={demographics}
+              geography={geography}
+              trafficSources={trafficSources}
+              deviceStats={deviceStats}
             />
           </Card>
         </TabsContent>
 
-        <TabsContent value="video">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Video Daily Metrics</h2>
-            <DataTable
-              columns={videoColumns}
-              data={videoData}
-            />
-          </Card>
+        <TabsContent value="strategy">
+          <ContentStrategyInsights insights={contentInsights} />
         </TabsContent>
       </Tabs>
     </div>
