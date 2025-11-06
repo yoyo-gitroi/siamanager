@@ -80,7 +80,7 @@ async function queryYouTubeAnalytics(
   dimensions: string
 ): Promise<any> {
   const url = new URL('https://youtubeanalytics.googleapis.com/v2/reports');
-  url.searchParams.set('ids', `channel==${channelId}`);
+  url.searchParams.set('ids', `channel==MINE`);
   url.searchParams.set('startDate', startDate);
   url.searchParams.set('endDate', endDate);
   url.searchParams.set('metrics', metrics);
