@@ -1,3 +1,5 @@
+// supabase/functions/yt-sync-daily-v2/index.ts
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -71,20 +73,33 @@ async function getValidToken(supabase: any, userId: string): Promise<{ token: st
   return { token: accessToken, channelId: token.channel_id };
 }
 
-async function queryYouTubeAnalytics(
-  accessToken: string,
-  channelId: string,
-  startDate: string,
-  endDate: string,
-  metrics: string,
-  dimensions: string,
-): Promise<any> {
+/**
+ * Generic YouTube Analytics reports.query wrapper.
+ * Supports optional filters, sort, and maxResults so we can call Top Videos correctly.
+ * Docs: https://developers.google.com/youtube/analytics/reference/reports/query
+ */
+async function queryYouTubeAnalytics(opts: {
+  accessToken: string;
+  channelId: string;
+  startDate: string;
+  endDate: string;
+  metrics: string;
+  dimensions?: string;
+  filters?: string;
+  sort?: string;
+  maxResults?: number;
+}): Promise<any> {
+  const { accessToken, channelId, startDate, endDate, metrics, dimensions, filters, sort, maxResults } = opts;
+
   const url = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
-  url.searchParams.set("ids", `channel==${channelId}`);
+  url.searchParams.set("ids", `channel==${channelId}`); // or channel==MINE (both valid if owned)
   url.searchParams.set("startDate", startDate);
   url.searchParams.set("endDate", endDate);
   url.searchParams.set("metrics", metrics);
-  url.searchParams.set("dimensions", dimensions);
+  if (dimensions) url.searchParams.set("dimensions", dimensions);
+  if (filters) url.searchParams.set("filters", filters);
+  if (sort) url.searchParams.set("sort", sort);
+  if (typeof maxResults === "number") url.searchParams.set("maxResults", String(maxResults));
 
   const response = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -112,12 +127,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extract token from "Bearer <token>"
     const token = authHeader.replace("Bearer ", "");
 
     const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "");
 
-    // Pass the token explicitly to getUser()
     const {
       data: { user },
       error: authError,
@@ -137,29 +150,39 @@ Deno.serve(async (req) => {
 
     const { token: accessToken, channelId } = await getValidToken(supabase, userId);
 
-    // Sync yesterday's data
+    // Sync yesterday's data (UTC date string)
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split("T")[0];
 
-    const metrics = "views,estimatedMinutesWatched,subscribersGained,subscribersLost";
+    // --------------------------
+    // Channel-level (time-based)
+    // --------------------------
+    const channelMetrics = "views,estimatedMinutesWatched,subscribersGained,subscribersLost";
+    const channelDims = "day";
 
-    // Channel-level sync
-    const requestChannel = {
+    const channelRequest = {
       channelId,
       startDate: dateStr,
       endDate: dateStr,
-      metrics,
-      dimensions: "day",
+      metrics: channelMetrics,
+      dimensions: channelDims,
     };
 
-    const channelData = await queryYouTubeAnalytics(accessToken, channelId, dateStr, dateStr, metrics, "day");
+    const channelData = await queryYouTubeAnalytics({
+      accessToken,
+      channelId,
+      startDate: dateStr,
+      endDate: dateStr,
+      metrics: channelMetrics,
+      dimensions: channelDims,
+    });
 
     await supabase.from("youtube_raw_archive").insert({
       user_id: userId,
       channel_id: channelId,
       report_type: "daily_channel",
-      request_json: requestChannel,
+      request_json: channelRequest,
       response_json: channelData,
     });
 
@@ -181,89 +204,62 @@ Deno.serve(async (req) => {
       channelRows = rows.length;
     }
 
-    // Video-level sync - fetch basic metrics first
-    const videoMetricsBasic = "views,estimatedMinutesWatched,averageViewDuration,likes,comments";
+    // ------------------------------------
+    // Video-level using "Top videos" report
+    // dimensions=video, sorted by views, maxResults <= 200
+    // (No impressions/CTR here; those metrics are not supported in channel reports.)
+    // ------------------------------------
+    const videoMetricsBasic =
+      "views,estimatedMinutesWatched,averageViewDuration,likes,comments,subscribersGained,subscribersLost";
 
-    const requestVideo = {
+    const videoRequest = {
       channelId,
       startDate: dateStr,
       endDate: dateStr,
       metrics: videoMetricsBasic,
-      dimensions: "day,video",
+      dimensions: "video",
+      sort: "-views",
+      maxResults: 200,
     };
 
-    const videoData = await queryYouTubeAnalytics(
+    const videoData = await queryYouTubeAnalytics({
       accessToken,
       channelId,
-      dateStr,
-      dateStr,
-      videoMetricsBasic,
-      "day,video",
-    );
+      startDate: dateStr,
+      endDate: dateStr,
+      metrics: videoMetricsBasic,
+      dimensions: "video", // valid when using Top videos report
+      sort: "-views",
+      maxResults: 200,
+    });
 
     await supabase.from("youtube_raw_archive").insert({
       user_id: userId,
       channel_id: channelId,
-      report_type: "daily_video",
-      request_json: requestVideo,
+      report_type: "daily_video_top",
+      request_json: videoRequest,
       response_json: videoData,
     });
-
-    // Try to fetch impression metrics separately (may not be available for all channels)
-    let impressionData: any = null;
-    try {
-      impressionData = await queryYouTubeAnalytics(
-        accessToken,
-        channelId,
-        dateStr,
-        dateStr,
-        "impressions,impressionClickThroughRate",
-        "day,video",
-      );
-      console.log("Impression data fetched successfully");
-    } catch (error) {
-      console.log(
-        "Impression metrics not available for this channel:",
-        error instanceof Error ? error.message : "Unknown error",
-      );
-      // Continue without impression data
-    }
 
     let videoRows = 0;
     if (videoData.rows && videoData.rows.length > 0) {
       const columnMap = new Map(videoData.columnHeaders.map((h: any, i: number) => [h.name, i]));
 
-      // Create impression map if data is available
-      const impressionMap = new Map();
-      if (impressionData?.rows && impressionData.rows.length > 0) {
-        const impColumnMap = new Map(impressionData.columnHeaders.map((h: any, i: number) => [h.name, i]));
-        impressionData.rows.forEach((row: any) => {
-          const key = `${row[impColumnMap.get("video") as number]}_${row[impColumnMap.get("day") as number]}`;
-          impressionMap.set(key, {
-            impressions: row[impColumnMap.get("impressions") as number] || 0,
-            ctr: row[impColumnMap.get("impressionClickThroughRate") as number] || 0,
-          });
-        });
-      }
-
       const rows = videoData.rows.map((row: any) => {
         const videoId = row[columnMap.get("video") as number];
-        const day = row[columnMap.get("day") as number];
-        const key = `${videoId}_${day}`;
-        const impressions = impressionMap.get(key);
 
         return {
           user_id: userId,
           channel_id: channelId,
           video_id: videoId,
-          day: day,
+          day: dateStr, // attach the day because Top videos doesn’t include a day column
           views: row[columnMap.get("views") as number] || 0,
           watch_time_seconds: (row[columnMap.get("estimatedMinutesWatched") as number] || 0) * 60,
           avg_view_duration_seconds: row[columnMap.get("averageViewDuration") as number] || 0,
-          impressions: impressions?.impressions || 0,
-          click_through_rate: impressions?.ctr || 0,
           likes: row[columnMap.get("likes") as number] || 0,
           comments: row[columnMap.get("comments") as number] || 0,
+          subscribers_gained: row[columnMap.get("subscribersGained") as number] || 0,
+          subscribers_lost: row[columnMap.get("subscribersLost") as number] || 0,
         };
       });
 
