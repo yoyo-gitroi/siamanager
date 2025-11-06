@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
 
-    const metrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,shares,subscribersGained,subscribersLost';
+    const metrics = 'views,estimatedMinutesWatched,subscribersGained,subscribersLost';
 
     // Channel-level sync
     const requestChannel = {
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       startDate: dateStr,
       endDate: dateStr,
       metrics,
-      dimensions: 'date'
+      dimensions: 'day'
     };
 
     const channelData = await queryYouTubeAnalytics(
@@ -170,30 +170,28 @@ Deno.serve(async (req) => {
       );
 
       const rows = channelData.rows.map((row: any) => ({
+        user_id: userId,
         channel_id: channelId,
-        date: row[columnMap.get('day') as number],
+        day: row[columnMap.get('day') as number],
         views: row[columnMap.get('views') as number] || 0,
         watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-        average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-        average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
-        likes: row[columnMap.get('likes') as number] || 0,
-        comments: row[columnMap.get('comments') as number] || 0,
-        shares: row[columnMap.get('shares') as number] || 0,
         subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
         subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
       }));
 
-      await supabase.from('yt_channel_daily').upsert(rows, { onConflict: 'channel_id,date' });
+      await supabase.from('yt_channel_daily').upsert(rows, { onConflict: 'channel_id,day' });
       channelRows = rows.length;
     }
 
-    // Video-level sync
+    // Video-level sync with impressions and CTR
+    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,cardImpressions,cardClickThroughRate,likes,comments';
+    
     const requestVideo = {
       channelId,
       startDate: dateStr,
       endDate: dateStr,
-      metrics,
-      dimensions: 'video,date'
+      metrics: videoMetrics,
+      dimensions: 'video,day'
     };
 
     const videoData = await queryYouTubeAnalytics(
@@ -201,7 +199,7 @@ Deno.serve(async (req) => {
       channelId,
       dateStr,
       dateStr,
-      metrics,
+      videoMetrics,
       'video,day'
     );
 
@@ -220,21 +218,20 @@ Deno.serve(async (req) => {
       );
 
       const rows = videoData.rows.map((row: any) => ({
+        user_id: userId,
         channel_id: channelId,
         video_id: row[columnMap.get('video') as number],
-        date: row[columnMap.get('day') as number],
+        day: row[columnMap.get('day') as number],
         views: row[columnMap.get('views') as number] || 0,
         watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
-        average_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
-        average_view_percentage: row[columnMap.get('averageViewPercentage') as number] || 0,
+        avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
+        impressions: row[columnMap.get('cardImpressions') as number] || 0,
+        click_through_rate: row[columnMap.get('cardClickThroughRate') as number] || 0,
         likes: row[columnMap.get('likes') as number] || 0,
         comments: row[columnMap.get('comments') as number] || 0,
-        shares: row[columnMap.get('shares') as number] || 0,
-        subscribers_gained: row[columnMap.get('subscribersGained') as number] || 0,
-        subscribers_lost: row[columnMap.get('subscribersLost') as number] || 0,
       }));
 
-      await supabase.from('yt_video_daily').upsert(rows, { onConflict: 'channel_id,video_id,date' });
+      await supabase.from('yt_video_daily').upsert(rows, { onConflict: 'channel_id,video_id,day' });
       videoRows = rows.length;
     }
 

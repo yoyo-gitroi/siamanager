@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeData } from "@/hooks/useYouTubeData";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -10,12 +12,15 @@ import PerformanceChart from "@/components/youtube/PerformanceChart";
 import VideoPerformanceTable from "@/components/youtube/VideoPerformanceTable";
 import AudienceInsightsPanel from "@/components/youtube/AudienceInsightsPanel";
 import ContentStrategyInsights from "@/components/youtube/ContentStrategyInsights";
-import SyncStatus from "@/components/youtube/SyncStatus";
+import { EnhancedSyncStatus } from "@/components/youtube/EnhancedSyncStatus";
+import { EmptyDataState } from "@/components/youtube/EmptyDataState";
 import { Loader2, Eye, Clock, Users, DollarSign, Target, ThumbsUp, Video } from "lucide-react";
 
 export default function YouTubeDataView() {
   const { user } = useAuth();
   const [daysBack, setDaysBack] = useState(30);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const { toast } = useToast();
   
   const {
     channelData,
@@ -48,9 +53,34 @@ export default function YouTubeDataView() {
     deviceStats
   );
 
+  const handleManualSync = async () => {
+    setSyncLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('yt-sync-daily-v2');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Sync Complete",
+        description: `Synced ${data.channelRows} channel metrics and ${data.videoRows} video metrics`,
+      });
+      
+      await refetch();
+    } catch (error: any) {
+      console.error('Manual sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error.message || "Failed to sync data",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -58,21 +88,45 @@ export default function YouTubeDataView() {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6">
-        <Card className="p-6 bg-danger/10 border-danger">
-          <p className="text-danger">Error loading data: {error}</p>
-          <Button onClick={refetch} className="mt-4">Retry</Button>
-        </Card>
+      <EmptyDataState
+        title="Error Loading Data"
+        description={error}
+        actionText="Try Again"
+        onAction={refetch}
+      />
+    );
+  }
+
+  const hasChannelData = channelData.length > 0;
+  const hasVideoData = videoData.length > 0;
+  const hasAnyData = hasChannelData || hasVideoData;
+
+  if (!hasAnyData) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">YouTube Studio Dashboard</h1>
+          <p className="text-muted-foreground">
+            Comprehensive analytics for your YouTube channel
+          </p>
+        </div>
+        
+        <EmptyDataState
+          title="No Data Available"
+          description="No YouTube analytics data found. Please run the backfill to import your channel's historical data."
+          actionText="Go to Setup"
+          actionLink="/youtube-setup"
+        />
       </div>
     );
   }
 
-  const lastSync = channelData.length > 0 ? new Date(channelData[0].day) : null;
+  const lastSync = channelData.length > 0 ? channelData[0].day : null;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">YouTube Studio Dashboard</h1>
           <p className="text-muted-foreground">
@@ -85,27 +139,34 @@ export default function YouTubeDataView() {
             onClick={() => setDaysBack(7)}
             size="sm"
           >
-            7 Days
+            7d
           </Button>
           <Button
             variant={daysBack === 30 ? "default" : "outline"}
             onClick={() => setDaysBack(30)}
             size="sm"
           >
-            30 Days
+            30d
           </Button>
           <Button
             variant={daysBack === 90 ? "default" : "outline"}
             onClick={() => setDaysBack(90)}
             size="sm"
           >
-            90 Days
+            90d
           </Button>
         </div>
       </div>
 
-      {/* Sync Status */}
-      <SyncStatus lastSync={lastSync} onRefresh={refetch} loading={loading} />
+      {/* Enhanced Sync Status */}
+      <EnhancedSyncStatus
+        lastSync={lastSync}
+        onRefresh={handleManualSync}
+        loading={syncLoading}
+        channelRows={channelData.length}
+        videoRows={videoData.length}
+        status={error ? "error" : syncLoading ? "syncing" : "success"}
+      />
 
       {/* Overview KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -170,7 +231,7 @@ export default function YouTubeDataView() {
 
       {/* Performance Chart */}
       <Card className="p-6">
-        <h2 className="mb-4">Performance Trends</h2>
+        <h2 className="text-xl font-semibold mb-4">Performance Trends</h2>
         <PerformanceChart
           data={channelData}
           metrics={["views", "watch_time", "subscribers", "revenue"]}
@@ -187,21 +248,39 @@ export default function YouTubeDataView() {
         </TabsList>
 
         <TabsContent value="videos">
-          <Card className="p-6">
-            <h2 className="mb-4">Top Performing Videos</h2>
-            <VideoPerformanceTable videos={videoPerformance} maxRows={50} />
-          </Card>
+          {videoPerformance.length > 0 ? (
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Top Performing Videos</h2>
+              <VideoPerformanceTable videos={videoPerformance} maxRows={50} />
+            </Card>
+          ) : (
+            <EmptyDataState
+              title="No Video Data"
+              description="No video performance data available for the selected period."
+              actionText="Refresh Data"
+              onAction={refetch}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="audience">
           <Card className="p-6">
-            <h2 className="mb-4">Audience Insights</h2>
-            <AudienceInsightsPanel
-              demographics={demographics}
-              geography={geography}
-              trafficSources={trafficSources}
-              deviceStats={deviceStats}
-            />
+            <h2 className="text-xl font-semibold mb-4">Audience Insights</h2>
+            {(demographics.length > 0 || geography.length > 0 || trafficSources.length > 0 || deviceStats.length > 0) ? (
+              <AudienceInsightsPanel
+                demographics={demographics}
+                geography={geography}
+                trafficSources={trafficSources}
+                deviceStats={deviceStats}
+              />
+            ) : (
+              <EmptyDataState
+                title="No Audience Data"
+                description="Audience insights data is updated quarterly. Please wait for the next quarterly update or run the comprehensive backfill."
+                actionText="Go to Setup"
+                actionLink="/youtube-setup"
+              />
+            )}
           </Card>
         </TabsContent>
 

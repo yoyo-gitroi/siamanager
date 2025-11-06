@@ -31,6 +31,10 @@ const AudienceInsightsPanel = ({
   trafficSources,
   deviceStats,
 }: AudienceInsightsPanelProps) => {
+  // Get the most recent data date for display
+  const mostRecentDate = demographics.length > 0 
+    ? new Date(demographics[0].day).toLocaleDateString() 
+    : "N/A";
   // Aggregate demographics
   const demoData = demographics.reduce((acc, demo) => {
     const key = `${demo.age_group}-${demo.gender}`;
@@ -88,13 +92,32 @@ const AudienceInsightsPanel = ({
     .sort((a, b) => b.views - a.views);
 
   return (
-    <Tabs defaultValue="demographics" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="demographics">Demographics</TabsTrigger>
-        <TabsTrigger value="geography">Geography</TabsTrigger>
-        <TabsTrigger value="traffic">Traffic Sources</TabsTrigger>
-        <TabsTrigger value="devices">Devices</TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      {/* Data Freshness Banner */}
+      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg p-3">
+        <div className="flex items-start gap-2">
+          <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              Quarterly Data
+            </p>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              Audience insights are updated quarterly by YouTube Analytics API. Showing most recent data from <strong>{mostRecentDate}</strong>.
+              This data is independent of the date range filter above.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="demographics" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="demographics">Demographics</TabsTrigger>
+          <TabsTrigger value="geography">Geography</TabsTrigger>
+          <TabsTrigger value="traffic">Traffic Sources</TabsTrigger>
+          <TabsTrigger value="devices">Devices</TabsTrigger>
+        </TabsList>
 
       <TabsContent value="demographics" className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -316,7 +339,8 @@ const AudienceInsightsPanel = ({
           </div>
         </div>
       </TabsContent>
-    </Tabs>
+      </Tabs>
+    </div>
   );
 };
 

@@ -234,9 +234,9 @@ Deno.serve(async (req) => {
 
     const { token: accessToken, channelId } = await getValidToken(supabase, userId);
     
-    // Safe metrics per report type
-    const channelMetrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments,subscribersGained,subscribersLost';
-    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,comments';
+    // Safe metrics per report type - matching table schema
+    const channelMetrics = 'views,estimatedMinutesWatched,subscribersGained,subscribersLost';
+    const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,cardImpressions,cardClickThroughRate,likes,comments';
     const minimalMetrics = 'views,estimatedMinutesWatched';
     
     const chunks = getMonthChunks(actualFromDate, endDate);
@@ -372,6 +372,8 @@ Deno.serve(async (req) => {
             views: row[columnMap.get('views') as number] || 0,
             watch_time_seconds: (row[columnMap.get('estimatedMinutesWatched') as number] || 0) * 60,
             avg_view_duration_seconds: row[columnMap.get('averageViewDuration') as number] || 0,
+            impressions: row[columnMap.get('cardImpressions') as number] || 0,
+            click_through_rate: row[columnMap.get('cardClickThroughRate') as number] || 0,
             likes: row[columnMap.get('likes') as number] || 0,
             comments: row[columnMap.get('comments') as number] || 0,
           }));

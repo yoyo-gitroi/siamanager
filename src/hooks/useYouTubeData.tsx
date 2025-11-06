@@ -146,47 +146,46 @@ export const useYouTubeData = (userId: string | undefined, daysBack: number = 30
       if (revenueError) throw revenueError;
       setRevenueData(revenueRows || []);
 
-      // Fetch demographics
+      // Fetch demographics (quarterly data - always get recent data regardless of filter)
       const { data: demoRows, error: demoError } = await supabase
         .from("yt_demographics")
         .select("*")
         .eq("user_id", userId)
-        .gte("day", startDate)
-        .order("day", { ascending: false });
+        .order("day", { ascending: false })
+        .limit(500);
 
       if (demoError) throw demoError;
       setDemographics(demoRows || []);
 
-      // Fetch geography
+      // Fetch geography (quarterly data - always get recent data)
       const { data: geoRows, error: geoError } = await supabase
         .from("yt_geography")
         .select("*")
         .eq("user_id", userId)
-        .gte("day", startDate)
         .order("day", { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (geoError) throw geoError;
       setGeography(geoRows || []);
 
-      // Fetch traffic sources
+      // Fetch traffic sources (quarterly data - always get recent data)
       const { data: trafficRows, error: trafficError } = await supabase
         .from("yt_traffic_sources")
         .select("*")
         .eq("user_id", userId)
-        .gte("day", startDate)
-        .order("day", { ascending: false });
+        .order("day", { ascending: false })
+        .limit(200);
 
       if (trafficError) throw trafficError;
       setTrafficSources(trafficRows || []);
 
-      // Fetch device stats
+      // Fetch device stats (quarterly data - always get recent data)
       const { data: deviceRows, error: deviceError } = await supabase
         .from("yt_device_stats")
         .select("*")
         .eq("user_id", userId)
-        .gte("day", startDate)
-        .order("day", { ascending: false });
+        .order("day", { ascending: false })
+        .limit(200);
 
       if (deviceError) throw deviceError;
       setDeviceStats(deviceRows || []);
