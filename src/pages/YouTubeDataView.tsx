@@ -281,32 +281,61 @@ export default function YouTubeDataView() {
               <h2 className="text-xl font-semibold mb-4">Top Performing Videos</h2>
               <VideoPerformanceTable videos={videoPerformance} maxRows={50} />
             </Card>
+          ) : videoMetadata.length > 0 ? (
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Video Metadata ({videoMetadata.length} videos)</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Video metadata is available. Run a sync to populate performance metrics.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {videoMetadata.slice(0, 50).map((video) => (
+                  <Card key={video.video_id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="aspect-video relative bg-muted">
+                      {video.thumbnail_url ? (
+                        <img 
+                          src={video.thumbnail_url} 
+                          alt={video.title || 'Video thumbnail'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <Video className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold line-clamp-2 mb-2 min-h-[3rem]">
+                        {video.title || 'Untitled Video'}
+                      </h3>
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        {video.published_at && (
+                          <p>Published: {new Date(video.published_at).toLocaleDateString()}</p>
+                        )}
+                        {video.duration_seconds && (
+                          <p>Duration: {Math.floor(video.duration_seconds / 60)}:{(video.duration_seconds % 60).toString().padStart(2, '0')}</p>
+                        )}
+                        {video.tags && video.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {video.tags.slice(0, 3).map((tag, idx) => (
+                              <span key={idx} className="text-xs bg-secondary px-2 py-1 rounded">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </Card>
           ) : (
             <Card className="p-6">
               <EmptyDataState
                 title="No Video Data"
-                description="No video performance data available for the selected period. Fetch video metadata to populate this section."
-                actionText="Fetch Video Metadata"
-                onAction={async () => {
-                  setSyncLoading(true);
-                  try {
-                    const { error } = await supabase.functions.invoke('yt-fetch-video-metadata');
-                    if (error) throw error;
-                    toast({
-                      title: "Success",
-                      description: "Video metadata fetched successfully",
-                    });
-                    await refetch();
-                  } catch (error: any) {
-                    toast({
-                      title: "Error",
-                      description: error.message || "Failed to fetch video metadata",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setSyncLoading(false);
-                  }
-                }}
+                description="No video metadata found. Run the backfill to import your channel's video data."
+                actionText="Go to Setup"
+                actionLink="/youtube-setup"
               />
             </Card>
           )}
