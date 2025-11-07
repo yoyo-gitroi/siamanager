@@ -243,7 +243,12 @@ Deno.serve(async (req) => {
     const minDate = "2015-01-01";
     const requestedFromDate = fromDate || minDate;
     const actualFromDate = requestedFromDate < minDate ? minDate : requestedFromDate;
-    const endDate = toDate || new Date().toISOString().split("T")[0];
+    
+    // Stop backfill 3 days before today to account for YouTube Analytics API delay
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() - 3);
+    const maxDateStr = maxDate.toISOString().split("T")[0];
+    const endDate = toDate ? (toDate > maxDateStr ? maxDateStr : toDate) : maxDateStr;
 
     console.log(`Starting backfill for user ${userId} from ${actualFromDate} to ${endDate}`);
 

@@ -150,10 +150,10 @@ Deno.serve(async (req) => {
 
     const { token: accessToken, channelId } = await getValidToken(supabase, userId);
 
-    // Sync yesterday's data (UTC date string)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split("T")[0];
+    // Sync data from 3 days ago (accounts for YouTube Analytics API 2-3 day delay)
+    const syncDate = new Date();
+    syncDate.setDate(syncDate.getDate() - 3);
+    const dateStr = syncDate.toISOString().split("T")[0];
 
     // --------------------------
     // Channel-level (time-based)

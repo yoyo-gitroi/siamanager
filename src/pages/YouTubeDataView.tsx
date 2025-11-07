@@ -62,6 +62,40 @@ export default function YouTubeDataView() {
     fetchSyncState();
   }, [user?.id, channelData]);
 
+  // Real-time updates for YouTube data
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('youtube-data-changes')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'yt_channel_daily', filter: `user_id=eq.${user.id}` },
+        () => {
+          console.log('New channel data detected, refreshing...');
+          refetch();
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'yt_video_daily', filter: `user_id=eq.${user.id}` },
+        () => {
+          console.log('New video data detected, refreshing...');
+          refetch();
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'yt_video_metadata', filter: `user_id=eq.${user.id}` },
+        () => {
+          console.log('New video metadata detected, refreshing...');
+          refetch();
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, refetch]);
+
   const {
     videoPerformance,
     currentMetrics,
@@ -90,11 +124,21 @@ export default function YouTubeDataView() {
         throw new Error(errorMessage);
       }
       
-      toast({
-        title: "Sync Complete",
-        description: `Synced ${data.channelRows} channel metrics and ${data.videoRows} video metrics`,
-      });
+      // Improved feedback based on results
+      if (data.channelRows === 0 && data.videoRows === 0) {
+        toast({
+          title: "Sync Complete",
+          description: `Synced data for ${data.date}. No new data available yet - YouTube Analytics typically has a 2-3 day delay. Try running the backfill for historical data or wait a day.`,
+        });
+      } else {
+        toast({
+          title: "Sync Complete", 
+          description: `Synced ${data.channelRows} channel metrics and ${data.videoRows} video metrics for ${data.date}`,
+        });
+      }
       
+      // Small delay to ensure database write propagates
+      await new Promise(resolve => setTimeout(resolve, 500));
       await refetch();
     } catch (error: any) {
       console.error('Manual sync error:', error);
