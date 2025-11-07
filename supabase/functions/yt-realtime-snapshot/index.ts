@@ -109,6 +109,43 @@ async function queryYouTubeDataAPI(
   }
 }
 
+// Track API quota usage
+async function trackQuotaUsage(supabase: any, userId: string, unitsUsed: number): Promise<boolean> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Get or create today's quota record
+  const { data: quota } = await supabase
+    .from('yt_api_quota_usage')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('date', today)
+    .maybeSingle();
+
+  const currentUsage = quota?.units_used || 0;
+  const newUsage = currentUsage + unitsUsed;
+
+  // Check if we're over quota (80% threshold = 8000 units)
+  if (newUsage >= 8000) {
+    console.warn(`User ${userId} approaching quota limit: ${newUsage}/10000 units`);
+    return false; // Don't proceed with API call
+  }
+
+  // Upsert quota usage
+  await supabase
+    .from('yt_api_quota_usage')
+    .upsert({
+      user_id: userId,
+      date: today,
+      units_used: newUsage,
+      units_available: 10000,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'user_id,date'
+    });
+
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -143,9 +180,22 @@ Deno.serve(async (req) => {
       try {
         console.log(`Processing user ${connection.user_id}, channel ${connection.channel_id}`);
         
-        const { token, channelId } = await getValidToken(supabase, connection.user_id);
+        // Check quota before proceeding (estimate: 3 units for this run)
+        const canProceed = await trackQuotaUsage(supabase, connection.user_id, 0);
+        if (!canProceed) {
+          console.warn(`Skipping user ${connection.user_id} - quota limit reached`);
+          results.push({
+            userId: connection.user_id,
+            skipped: true,
+            reason: 'quota_limit_reached',
+          });
+          continue;
+        }
 
-        // 1. Fetch channel statistics
+        const { token, channelId } = await getValidToken(supabase, connection.user_id);
+        let apiUnitsUsed = 0;
+
+        // 1. Fetch channel statistics (1 unit)
         const channelData = await queryYouTubeDataAPI(
           'channels',
           {
@@ -154,6 +204,7 @@ Deno.serve(async (req) => {
           },
           token
         );
+        apiUnitsUsed += 1;
 
         if (channelData.items && channelData.items.length > 0) {
           const stats = channelData.items[0].statistics;
@@ -167,66 +218,40 @@ Deno.serve(async (req) => {
           });
         }
 
-        // 2. Get uploads playlist ID
-        const channelDetails = await queryYouTubeDataAPI(
-          'channels',
-          {
-            part: 'contentDetails',
-            id: channelId,
-          },
-          token
-        );
+        // 2. Get recent video IDs from database (published in last 48 hours)
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+        
+        const { data: recentVideos } = await supabase
+          .from('yt_video_metadata')
+          .select('video_id')
+          .eq('channel_id', channelId)
+          .eq('user_id', connection.user_id)
+          .gte('published_at', twoDaysAgo.toISOString())
+          .order('published_at', { ascending: false })
+          .limit(20);
 
-        if (!channelDetails.items || channelDetails.items.length === 0) {
-          throw new Error('Channel not found');
-        }
+        const videoIds = recentVideos?.map((v: any) => v.video_id) || [];
 
-        const uploadsPlaylistId = channelDetails.items[0].contentDetails.relatedPlaylists.uploads;
-
-        // 3. Get recent video IDs from uploads playlist
-        const playlistItems = await queryYouTubeDataAPI(
-          'playlistItems',
-          {
-            part: 'contentDetails',
-            playlistId: uploadsPlaylistId,
-            maxResults: '50',
-          },
-          token
-        );
-
-        const videoIds = playlistItems.items?.map((item: any) => item.contentDetails.videoId) || [];
-
-        // 4. Search for live videos
-        const liveSearch = await queryYouTubeDataAPI(
-          'search',
-          {
-            part: 'id',
-            channelId: channelId,
-            eventType: 'live',
-            type: 'video',
-            maxResults: '10',
-          },
-          token
-        );
-
-        const liveVideoIds = liveSearch.items?.map((item: any) => item.id.videoId) || [];
-        const allVideoIds = [...new Set([...videoIds, ...liveVideoIds])];
-
-        if (allVideoIds.length === 0) {
-          console.log(`No videos found for channel ${channelId}`);
+        if (videoIds.length === 0) {
+          console.log(`No recent videos found for channel ${channelId}`);
+          await trackQuotaUsage(supabase, connection.user_id, apiUnitsUsed);
+          results.push({
+            userId: connection.user_id,
+            channelId,
+            videosCaptured: 0,
+            apiUnitsUsed,
+          });
           continue;
         }
 
-        // 5. Fetch video statistics in batches of 50
+        // 3. Fetch video statistics (1 unit per 50 videos)
         const videoSnapshots = [];
-        for (let i = 0; i < allVideoIds.length; i += 50) {
-          const batch = allVideoIds.slice(i, i + 50);
+        const batchSize = 50;
+        
+        for (let i = 0; i < videoIds.length; i += batchSize) {
+          const batch = videoIds.slice(i, i + batchSize);
           
-          // Add delay between batches to respect rate limits
-          if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-
           const videoData = await queryYouTubeDataAPI(
             'videos',
             {
@@ -235,6 +260,7 @@ Deno.serve(async (req) => {
             },
             token
           );
+          apiUnitsUsed += 1;
 
           if (videoData.items) {
             for (const video of videoData.items) {
@@ -256,7 +282,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // 6. Insert video snapshots
+        // 4. Insert video snapshots
         if (videoSnapshots.length > 0) {
           const { error: insertError } = await supabase
             .from('yt_video_intraday')
@@ -267,14 +293,18 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Track actual API usage
+        await trackQuotaUsage(supabase, connection.user_id, apiUnitsUsed);
+
         results.push({
           userId: connection.user_id,
           channelId,
           videosCaptured: videoSnapshots.length,
           liveNow: videoSnapshots.filter(v => v.is_live).length,
+          apiUnitsUsed,
         });
 
-        console.log(`Successfully captured ${videoSnapshots.length} video snapshots for ${channelId}`);
+        console.log(`Successfully captured ${videoSnapshots.length} video snapshots (${apiUnitsUsed} API units)`);
       } catch (error) {
         console.error(`Error processing user ${connection.user_id}:`, error);
         results.push({

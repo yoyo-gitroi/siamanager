@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeData } from "@/hooks/useYouTubeData";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 import { useYouTubeRealtime } from "@/hooks/useYouTubeRealtime";
+import { useQuotaUsage } from "@/hooks/useQuotaUsage";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { EnhancedSyncStatus } from "@/components/youtube/EnhancedSyncStatus";
 import { EmptyDataState } from "@/components/youtube/EmptyDataState";
 import { VideoDetailsModal } from "@/components/youtube/VideoDetailsModal";
 import { RealtimeMetricCards } from "@/components/youtube/RealtimeMetricCards";
+import { QuotaUsageDisplay } from "@/components/youtube/QuotaUsageDisplay";
 import { Loader2, Eye, Clock, Users, DollarSign, Target, ThumbsUp, Video } from "lucide-react";
 
 export default function YouTubeDataView() {
@@ -120,6 +122,9 @@ export default function YouTubeDataView() {
   // Fetch realtime metrics
   const { metrics: realtimeMetrics, channelMetrics: realtimeChannelMetrics, loading: realtimeLoading, refetch: refetchRealtime } = useYouTubeRealtime(user?.id);
   const [realtimeCaptureLoading, setRealtimeCaptureLoading] = useState(false);
+  
+  // Fetch quota usage
+  const { quota, loading: quotaLoading } = useQuotaUsage(user?.id);
 
   const handleRealtimeCapture = async () => {
     setRealtimeCaptureLoading(true);
@@ -280,20 +285,31 @@ export default function YouTubeDataView() {
       </div>
 
       {/* Enhanced Sync Status */}
-      <EnhancedSyncStatus
-        lastSync={syncState?.last_sync_at || null}
-        dataDate={syncState?.last_sync_date || lastSync}
-        onRefresh={handleManualSync}
-        loading={syncLoading}
-        channelRows={channelData.length}
-        videoRows={videoData.length}
-        status={syncState?.status === 'failed' ? 'error' : syncLoading ? 'syncing' : 'success'}
-        errorMessage={syncState?.last_error}
-        realtimeLastCapture={realtimeChannelMetrics?.lastCaptured || realtimeMetrics?.lastCaptured || null}
-        realtimeVideos={realtimeMetrics?.totalVideos || 0}
-        onRealtimeCapture={handleRealtimeCapture}
-        realtimeLoading={realtimeCaptureLoading}
-      />
+      <div className="space-y-4">
+        <EnhancedSyncStatus
+          lastSync={syncState?.last_sync_at || null}
+          dataDate={syncState?.last_sync_date || lastSync}
+          onRefresh={handleManualSync}
+          loading={syncLoading}
+          channelRows={channelData.length}
+          videoRows={videoData.length}
+          status={syncState?.status === 'failed' ? 'error' : syncLoading ? 'syncing' : 'success'}
+          errorMessage={syncState?.last_error}
+          realtimeLastCapture={realtimeChannelMetrics?.lastCaptured || realtimeMetrics?.lastCaptured || null}
+          realtimeVideos={realtimeMetrics?.totalVideos || 0}
+          onRealtimeCapture={handleRealtimeCapture}
+          realtimeLoading={realtimeCaptureLoading}
+        />
+        
+        {/* Quota Usage Display */}
+        {quota && !quotaLoading && (
+          <QuotaUsageDisplay
+            unitsUsed={quota.unitsUsed}
+            unitsAvailable={quota.unitsAvailable}
+            percentage={quota.percentage}
+          />
+        )}
+      </div>
 
       {/* Overview KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

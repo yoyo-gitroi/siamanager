@@ -703,6 +703,39 @@ export type Database = {
         }
         Relationships: []
       }
+      yt_api_quota_usage: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          last_reset_at: string | null
+          units_available: number
+          units_used: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          last_reset_at?: string | null
+          units_available?: number
+          units_used?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          last_reset_at?: string | null
+          units_available?: number
+          units_used?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       yt_audience_retention: {
         Row: {
           audience_watch_ratio: number | null
