@@ -14,6 +14,7 @@ import AudienceInsightsPanel from "@/components/youtube/AudienceInsightsPanel";
 import ContentStrategyInsights from "@/components/youtube/ContentStrategyInsights";
 import { EnhancedSyncStatus } from "@/components/youtube/EnhancedSyncStatus";
 import { EmptyDataState } from "@/components/youtube/EmptyDataState";
+import { VideoDetailsModal } from "@/components/youtube/VideoDetailsModal";
 import { Loader2, Eye, Clock, Users, DollarSign, Target, ThumbsUp, Video } from "lucide-react";
 
 export default function YouTubeDataView() {
@@ -21,6 +22,8 @@ export default function YouTubeDataView() {
   const [daysBack, setDaysBack] = useState(30);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncState, setSyncState] = useState<{ status: string; last_error: string | null } | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<typeof videoMetadata[0] | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
   
   const {
@@ -289,7 +292,14 @@ export default function YouTubeDataView() {
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {videoMetadata.slice(0, 50).map((video) => (
-                  <Card key={video.video_id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <Card 
+                    key={video.video_id} 
+                    className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => {
+                      setSelectedVideo(video);
+                      setIsModalOpen(true);
+                    }}
+                  >
                     <div className="aspect-video relative bg-muted">
                       {video.thumbnail_url ? (
                         <img 
@@ -366,6 +376,12 @@ export default function YouTubeDataView() {
           <ContentStrategyInsights insights={contentInsights} />
         </TabsContent>
       </Tabs>
+
+      <VideoDetailsModal 
+        video={selectedVideo}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </div>
   );
 }
