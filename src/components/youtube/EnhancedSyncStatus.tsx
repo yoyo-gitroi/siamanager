@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Clock, CheckCircle2, AlertCircle, Database } from "lucide-react";
+import { RefreshCw, Clock, CheckCircle2, AlertCircle, Database, Radio } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 
@@ -16,6 +16,8 @@ interface EnhancedSyncStatusProps {
   errorMessage?: string | null;
   realtimeLastCapture?: string | null;
   realtimeVideos?: number;
+  onRealtimeCapture?: () => void;
+  realtimeLoading?: boolean;
 }
 
 export const EnhancedSyncStatus = ({
@@ -29,6 +31,8 @@ export const EnhancedSyncStatus = ({
   errorMessage = null,
   realtimeLastCapture = null,
   realtimeVideos = 0,
+  onRealtimeCapture,
+  realtimeLoading = false,
 }: EnhancedSyncStatusProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -151,6 +155,27 @@ export const EnhancedSyncStatus = ({
             </div>
           )}
 
+          {onRealtimeCapture && (
+            <Button 
+              onClick={onRealtimeCapture} 
+              disabled={realtimeLoading}
+              size="sm"
+              variant="default"
+              className="gap-2"
+            >
+              {realtimeLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Capturing...
+                </>
+              ) : (
+                <>
+                  <Radio className="h-4 w-4" />
+                  Capture Now
+                </>
+              )}
+            </Button>
+          )}
           <Button
             onClick={onRefresh}
             disabled={loading}
@@ -162,7 +187,7 @@ export const EnhancedSyncStatus = ({
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Sync Now
+                Sync Analytics
               </>
             )}
           </Button>

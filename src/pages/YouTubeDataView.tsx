@@ -118,7 +118,47 @@ export default function YouTubeDataView() {
   );
 
   // Fetch realtime metrics
-  const { metrics: realtimeMetrics, channelMetrics: realtimeChannelMetrics, loading: realtimeLoading } = useYouTubeRealtime(user?.id);
+  const { metrics: realtimeMetrics, channelMetrics: realtimeChannelMetrics, loading: realtimeLoading, refetch: refetchRealtime } = useYouTubeRealtime(user?.id);
+  const [realtimeCaptureLoading, setRealtimeCaptureLoading] = useState(false);
+
+  const handleRealtimeCapture = async () => {
+    setRealtimeCaptureLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('yt-realtime-snapshot');
+      
+      if (error) {
+        console.error('Realtime capture error:', error);
+        toast({
+          title: "Capture Failed",
+          description: error.message || "Failed to capture real-time data",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Realtime capture response:', data);
+        toast({
+          title: "Real-time Data Captured",
+          description: `Successfully captured data for ${data.totalUsers} user(s)`,
+        });
+        
+        // Trigger refetch of real-time data
+        if (refetchRealtime) {
+          await refetchRealtime();
+        }
+        
+        // Also refetch main data to update charts
+        await refetch();
+      }
+    } catch (err: any) {
+      console.error('Realtime capture exception:', err);
+      toast({
+        title: "Capture Error",
+        description: err.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setRealtimeCaptureLoading(false);
+    }
+  };
 
   const handleManualSync = async () => {
     setSyncLoading(true);
@@ -251,6 +291,8 @@ export default function YouTubeDataView() {
         errorMessage={syncState?.last_error}
         realtimeLastCapture={realtimeChannelMetrics?.lastCaptured || realtimeMetrics?.lastCaptured || null}
         realtimeVideos={realtimeMetrics?.totalVideos || 0}
+        onRealtimeCapture={handleRealtimeCapture}
+        realtimeLoading={realtimeCaptureLoading}
       />
 
       {/* Overview KPIs */}
@@ -317,11 +359,18 @@ export default function YouTubeDataView() {
       {/* Performance Chart */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">Performance Trends</h2>
-        <PerformanceChart
-          data={channelData}
-          metrics={["views", "watch_time", "subscribers", "revenue"]}
-          chartType="area"
-        />
+        {channelData.length > 0 ? (
+          <PerformanceChart
+            data={channelData}
+            metrics={["views", "watch_time", "subscribers", "revenue"]}
+            chartType="area"
+            key={`chart-${channelData.length}-${channelData[0]?.day}`}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-64 text-muted-foreground">
+            No chart data available yet
+          </div>
+        )}
       </Card>
 
       {/* Main Content Tabs */}

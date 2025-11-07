@@ -41,6 +41,11 @@ export const useYouTubeRealtime = (userId: string | undefined, videoId?: string)
   const [channelMetrics, setChannelMetrics] = useState<ChannelRealtimeMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
+
+  const refetch = () => {
+    setRefetchTrigger(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -266,7 +271,7 @@ export const useYouTubeRealtime = (userId: string | undefined, videoId?: string)
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, videoId]);
+  }, [userId, videoId, refetchTrigger]);
 
-  return { metrics, channelMetrics, loading, error };
+  return { metrics, channelMetrics, loading, error, refetch };
 };
