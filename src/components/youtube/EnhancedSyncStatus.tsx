@@ -14,6 +14,8 @@ interface EnhancedSyncStatusProps {
   videoRows?: number;
   status?: "success" | "error" | "syncing";
   errorMessage?: string | null;
+  realtimeLastCapture?: string | null;
+  realtimeVideos?: number;
 }
 
 export const EnhancedSyncStatus = ({
@@ -25,6 +27,8 @@ export const EnhancedSyncStatus = ({
   videoRows = 0,
   status = "success",
   errorMessage = null,
+  realtimeLastCapture = null,
+  realtimeVideos = 0,
 }: EnhancedSyncStatusProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -102,22 +106,32 @@ export const EnhancedSyncStatus = ({
             <span className="font-semibold">{statusInfo.text}</span>
           </div>
 
-          {lastSync && (
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          {realtimeLastCapture && (
+            <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
-                <Clock className="h-3 w-3" />
-                <span>
-                  Synced {formatDistanceToNow(new Date(lastSync), { addSuffix: true })}
+                <div className="relative">
+                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                </div>
+                <span className="font-medium text-green-600 dark:text-green-400">
+                  Real-time: Updated {formatDistanceToNow(new Date(realtimeLastCapture), { addSuffix: true })}
                 </span>
               </div>
-              {dataDate && (
-                <div className="flex items-center gap-2 px-2 py-1 bg-muted rounded-md">
-                  <Database className="h-3 w-3" />
-                  <span className="text-xs font-medium">
-                    Data from {new Date(dataDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {realtimeVideos > 0 && (
+                <div className="flex items-center gap-2 px-2 py-1 bg-green-50 dark:bg-green-950/20 rounded-md">
+                  <Database className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                    {realtimeVideos} videos tracked
                   </span>
                 </div>
               )}
+            </div>
+          )}
+          {lastSync && dataDate && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>
+                Processed Analytics: {new Date(dataDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (official metrics)
+              </span>
             </div>
           )}
         </div>
@@ -184,17 +198,17 @@ export const EnhancedSyncStatus = ({
         </div>
       )}
 
-      {lastSync && dataDate && status === "success" && (
-        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md">
+      {realtimeLastCapture && (
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-md">
           <div className="flex items-start gap-2">
-            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
-                YouTube Analytics Data Delay
+              <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                Live Data Updates Every 5 Minutes
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                YouTube Analytics API has a 2-3 day data delay. The most recent data available is from {new Date(dataDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. 
-                Today's data (November 7th) will be available around November 10th.
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Real-time metrics are captured directly from YouTube Data API and update automatically every 5 minutes. 
+                For official filtered metrics (invalid traffic removed), check the "Processed Analytics" tab which has a 2-3 day delay.
               </p>
             </div>
           </div>

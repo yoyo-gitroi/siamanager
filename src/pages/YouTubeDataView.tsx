@@ -249,6 +249,8 @@ export default function YouTubeDataView() {
         videoRows={videoData.length}
         status={syncState?.status === 'failed' ? 'error' : syncLoading ? 'syncing' : 'success'}
         errorMessage={syncState?.last_error}
+        realtimeLastCapture={realtimeChannelMetrics?.lastCaptured || realtimeMetrics?.lastCaptured || null}
+        realtimeVideos={realtimeMetrics?.totalVideos || 0}
       />
 
       {/* Overview KPIs */}
