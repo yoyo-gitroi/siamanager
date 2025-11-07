@@ -282,12 +282,33 @@ export default function YouTubeDataView() {
               <VideoPerformanceTable videos={videoPerformance} maxRows={50} />
             </Card>
           ) : (
-            <EmptyDataState
-              title="No Video Data"
-              description="No video performance data available for the selected period."
-              actionText="Refresh Data"
-              onAction={refetch}
-            />
+            <Card className="p-6">
+              <EmptyDataState
+                title="No Video Data"
+                description="No video performance data available for the selected period. Fetch video metadata to populate this section."
+                actionText="Fetch Video Metadata"
+                onAction={async () => {
+                  setSyncLoading(true);
+                  try {
+                    const { error } = await supabase.functions.invoke('yt-fetch-video-metadata');
+                    if (error) throw error;
+                    toast({
+                      title: "Success",
+                      description: "Video metadata fetched successfully",
+                    });
+                    await refetch();
+                  } catch (error: any) {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to fetch video metadata",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setSyncLoading(false);
+                  }
+                }}
+              />
+            </Card>
           )}
         </TabsContent>
 
