@@ -117,6 +117,9 @@ export default function YouTubeDataView() {
     deviceStats
   );
 
+  // Fetch realtime metrics
+  const { metrics: realtimeMetrics, channelMetrics: realtimeChannelMetrics, loading: realtimeLoading } = useYouTubeRealtime(user?.id);
+
   const handleManualSync = async () => {
     setSyncLoading(true);
     try {
