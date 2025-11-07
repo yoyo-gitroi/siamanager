@@ -3,6 +3,9 @@ project_id = "pfrdaarzcxxlxlhlfhoh"
 [functions.generate-insights]
 verify_jwt = true
 
+[functions.yt-realtime-snapshot]
+verify_jwt = false
+
 [functions.chat]
 verify_jwt = true
 

@@ -775,6 +775,36 @@ export type Database = {
         }
         Relationships: []
       }
+      yt_channel_intraday: {
+        Row: {
+          captured_at: string
+          channel_id: string
+          id: string
+          subscriber_count: number | null
+          user_id: string
+          video_count: number | null
+          view_count: number | null
+        }
+        Insert: {
+          captured_at?: string
+          channel_id: string
+          id?: string
+          subscriber_count?: number | null
+          user_id: string
+          video_count?: number | null
+          view_count?: number | null
+        }
+        Update: {
+          captured_at?: string
+          channel_id?: string
+          id?: string
+          subscriber_count?: number | null
+          user_id?: string
+          video_count?: number | null
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       yt_demographics: {
         Row: {
           age_group: string | null
@@ -1108,6 +1138,45 @@ export type Database = {
           video_id?: string
           views?: number | null
           watch_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      yt_video_intraday: {
+        Row: {
+          captured_at: string
+          channel_id: string
+          comment_count: number | null
+          concurrent_viewers: number | null
+          id: string
+          is_live: boolean | null
+          like_count: number | null
+          user_id: string
+          video_id: string
+          view_count: number | null
+        }
+        Insert: {
+          captured_at?: string
+          channel_id: string
+          comment_count?: number | null
+          concurrent_viewers?: number | null
+          id?: string
+          is_live?: boolean | null
+          like_count?: number | null
+          user_id: string
+          video_id: string
+          view_count?: number | null
+        }
+        Update: {
+          captured_at?: string
+          channel_id?: string
+          comment_count?: number | null
+          concurrent_viewers?: number | null
+          id?: string
+          is_live?: boolean | null
+          like_count?: number | null
+          user_id?: string
+          video_id?: string
+          view_count?: number | null
         }
         Relationships: []
       }

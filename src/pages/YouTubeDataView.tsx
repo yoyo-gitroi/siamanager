@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeData } from "@/hooks/useYouTubeData";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
+import { useYouTubeRealtime } from "@/hooks/useYouTubeRealtime";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import ContentStrategyInsights from "@/components/youtube/ContentStrategyInsight
 import { EnhancedSyncStatus } from "@/components/youtube/EnhancedSyncStatus";
 import { EmptyDataState } from "@/components/youtube/EmptyDataState";
 import { VideoDetailsModal } from "@/components/youtube/VideoDetailsModal";
+import { RealtimeMetricCards } from "@/components/youtube/RealtimeMetricCards";
 import { Loader2, Eye, Clock, Users, DollarSign, Target, ThumbsUp, Video } from "lucide-react";
 
 export default function YouTubeDataView() {
@@ -318,12 +320,42 @@ export default function YouTubeDataView() {
       </Card>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="videos" className="space-y-6">
+      <Tabs defaultValue="realtime" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="realtime">Real-time</TabsTrigger>
           <TabsTrigger value="videos">Video Performance</TabsTrigger>
           <TabsTrigger value="audience">Audience Insights</TabsTrigger>
           <TabsTrigger value="strategy">Content Strategy</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="realtime">
+          {realtimeLoading ? (
+            <Card className="p-6">
+              <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            </Card>
+          ) : realtimeMetrics && realtimeChannelMetrics ? (
+            <RealtimeMetricCards
+              todayViews={realtimeChannelMetrics.todayViews || realtimeMetrics.todayViews}
+              last60MinViews={realtimeChannelMetrics.last60MinViews || realtimeMetrics.last60MinViews}
+              last48HrViews={realtimeChannelMetrics.last48HrViews || realtimeMetrics.last48HrViews}
+              todayLikes={realtimeMetrics.todayLikes}
+              isLive={realtimeMetrics.isLive}
+              liveViewers={realtimeMetrics.currentLiveViewers}
+              lastCaptured={realtimeChannelMetrics.lastCaptured || realtimeMetrics.lastCaptured}
+            />
+          ) : (
+            <Card className="p-6">
+              <div className="text-center">
+                <p className="text-muted-foreground mb-4">No real-time data available yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  Real-time snapshots are captured every 5 minutes. Please wait for the first sync to complete.
+                </p>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
 
         <TabsContent value="videos">
           {videoPerformance.length > 0 ? (
