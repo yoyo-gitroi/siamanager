@@ -21,7 +21,7 @@ export default function YouTubeDataView() {
   const { user } = useAuth();
   const [daysBack, setDaysBack] = useState(30);
   const [syncLoading, setSyncLoading] = useState(false);
-  const [syncState, setSyncState] = useState<{ status: string; last_error: string | null } | null>(null);
+  const [syncState, setSyncState] = useState<{ status: string; last_error: string | null; last_sync_at: string | null; last_sync_date: string | null } | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<typeof videoMetadata[0] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
@@ -47,7 +47,7 @@ export default function YouTubeDataView() {
     const fetchSyncState = async () => {
       const { data } = await supabase
         .from('youtube_sync_state')
-        .select('status, last_error')
+        .select('status, last_error, last_sync_at, last_sync_date')
         .eq('user_id', user.id)
         .maybeSingle();
       
@@ -55,6 +55,8 @@ export default function YouTubeDataView() {
         setSyncState({
           status: data.status || 'unknown',
           last_error: data.last_error,
+          last_sync_at: data.last_sync_at,
+          last_sync_date: data.last_sync_date,
         });
       }
     };
@@ -234,7 +236,8 @@ export default function YouTubeDataView() {
 
       {/* Enhanced Sync Status */}
       <EnhancedSyncStatus
-        lastSync={lastSync}
+        lastSync={syncState?.last_sync_at || null}
+        dataDate={syncState?.last_sync_date || lastSync}
         onRefresh={handleManualSync}
         loading={syncLoading}
         channelRows={channelData.length}

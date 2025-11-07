@@ -7,6 +7,7 @@ import { useState } from "react";
 
 interface EnhancedSyncStatusProps {
   lastSync: string | null;
+  dataDate?: string | null;
   onRefresh: () => void;
   loading?: boolean;
   channelRows?: number;
@@ -17,6 +18,7 @@ interface EnhancedSyncStatusProps {
 
 export const EnhancedSyncStatus = ({
   lastSync,
+  dataDate,
   onRefresh,
   loading = false,
   channelRows = 0,
@@ -101,11 +103,21 @@ export const EnhancedSyncStatus = ({
           </div>
 
           {lastSync && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>
-                Last synced {formatDistanceToNow(new Date(lastSync), { addSuffix: true })}
-              </span>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Clock className="h-3 w-3" />
+                <span>
+                  Synced {formatDistanceToNow(new Date(lastSync), { addSuffix: true })}
+                </span>
+              </div>
+              {dataDate && (
+                <div className="flex items-center gap-2 px-2 py-1 bg-muted rounded-md">
+                  <Database className="h-3 w-3" />
+                  <span className="text-xs font-medium">
+                    Data from {new Date(dataDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -169,6 +181,23 @@ export const EnhancedSyncStatus = ({
           <p className="text-sm text-blue-800 dark:text-blue-200">
             No data synced yet. Click "Sync Now" or run the backfill to populate historical data.
           </p>
+        </div>
+      )}
+
+      {lastSync && dataDate && status === "success" && (
+        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md">
+          <div className="flex items-start gap-2">
+            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                YouTube Analytics Data Delay
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                YouTube Analytics API has a 2-3 day data delay. The most recent data available is from {new Date(dataDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. 
+                Today's data (November 7th) will be available around November 10th.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </Card>
