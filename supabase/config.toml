@@ -32,3 +32,19 @@ verify_jwt = true
 
 [functions.yt-sync-all-users-daily]
 verify_jwt = false
+
+# Instagram Functions
+[functions.instagram-oauth-start]
+verify_jwt = true
+
+[functions.instagram-oauth-callback]
+verify_jwt = true
+
+[functions.instagram-sync-daily]
+verify_jwt = true
+
+[functions.instagram-realtime-snapshot]
+verify_jwt = false
+
+[functions.instagram-fetch-media]
+verify_jwt = true
