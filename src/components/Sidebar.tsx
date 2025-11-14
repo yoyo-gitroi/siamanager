@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, PenTool, Send, MessageSquare, Settings, X, FileText, Database } from "lucide-react";
+import { Home, BarChart3, PenTool, Send, MessageSquare, Settings, X, FileText, Database, Instagram, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,9 @@ interface SidebarProps {
 const navItems = [
   { icon: Home, label: "Overview", path: "/" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
+  { icon: Youtube, label: "YouTube Analytics", path: "/youtube-analytics" },
+  { icon: Instagram, label: "Instagram Setup", path: "/instagram-setup" },
+  { icon: Instagram, label: "Instagram Analytics", path: "/instagram-analytics" },
   { icon: Database, label: "YouTube Data", path: "/youtube-data" },
   { icon: PenTool, label: "Create", path: "/create" },
   { icon: Send, label: "Post", path: "/post" },

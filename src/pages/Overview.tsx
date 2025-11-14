@@ -1,27 +1,31 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeData } from "@/hooks/useYouTubeData";
+import { useInstagramData } from "@/hooks/useInstagramData";
+import { useInstagramRealtime } from "@/hooks/useInstagramRealtime";
 import { useAgents } from "@/hooks/useAgents";
 import StatCard from "@/components/StatCard";
 import DataTable from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Play, Eye, TrendingUp, DollarSign, Users } from "lucide-react";
+import { Play, Eye, TrendingUp, DollarSign, Users, Heart, Instagram, Youtube } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { DateRangePicker } from "@/components/DateRangePicker";
 const Overview = () => {
   const { user } = useAuth();
   const { channelData, revenueData, loading: ytLoading } = useYouTubeData(user?.id, 60);
+  const { dailyMetrics: instagramDailyMetrics, loading: igDataLoading } = useInstagramData(user?.id, 60);
+  const { metrics: instagramRealtimeMetrics, loading: igRealtimeLoading } = useInstagramRealtime(user?.id);
   const { agents, runs, loading: agentsLoading, runAgent } = useAgents();
   const [dateRange, setDateRange] = useState({
     from: subDays(new Date(), 30),
     to: new Date()
   });
 
-  // Calculate KPIs from channel data
-  const kpis = useMemo(() => {
+  // Calculate YouTube KPIs
+  const youtubeKpis = useMemo(() => {
     if (!channelData.length) {
       return {
         views30: 0, viewsGrowth: 0,
@@ -53,7 +57,7 @@ const Overview = () => {
     const subsGained30 = last30.reduce((sum, d) => sum + (d.subscribers_gained || 0), 0);
     const subsLost30 = last30.reduce((sum, d) => sum + (d.subscribers_lost || 0), 0);
     const subscribers30 = subsGained30 - subsLost30;
-    
+
     const subsGainedPrev = prev30.reduce((sum, d) => sum + (d.subscribers_gained || 0), 0);
     const subsLostPrev = prev30.reduce((sum, d) => sum + (d.subscribers_lost || 0), 0);
     const subscribersPrev = subsGainedPrev - subsLostPrev;
@@ -74,6 +78,55 @@ const Overview = () => {
       revenueGrowth
     };
   }, [channelData]);
+
+  // Calculate Instagram KPIs
+  const instagramKpis = useMemo(() => {
+    if (!instagramDailyMetrics.length) {
+      return {
+        impressions30: 0, impressionsGrowth: 0,
+        reach30: 0, reachGrowth: 0,
+        engagement30: 0, engagementGrowth: 0,
+        profileViews30: 0, profileViewsGrowth: 0
+      };
+    }
+
+    const now = new Date();
+    const days30Ago = subDays(now, 30);
+    const days60Ago = subDays(now, 60);
+
+    const last30 = instagramDailyMetrics.filter(d => new Date(d.day) >= days30Ago);
+    const prev30 = instagramDailyMetrics.filter(d => {
+      const date = new Date(d.day);
+      return date >= days60Ago && date < days30Ago;
+    });
+
+    const impressions30 = last30.reduce((sum, d) => sum + (d.impressions || 0), 0);
+    const impressionsPrev = prev30.reduce((sum, d) => sum + (d.impressions || 0), 0);
+    const impressionsGrowth = impressionsPrev > 0 ? ((impressions30 - impressionsPrev) / impressionsPrev) * 100 : 0;
+
+    const reach30 = last30.reduce((sum, d) => sum + (d.reach || 0), 0);
+    const reachPrev = prev30.reduce((sum, d) => sum + (d.reach || 0), 0);
+    const reachGrowth = reachPrev > 0 ? ((reach30 - reachPrev) / reachPrev) * 100 : 0;
+
+    const engagement30 = last30.reduce((sum, d) => sum + (d.likes || 0) + (d.comments || 0) + (d.saves || 0) + (d.shares || 0), 0);
+    const engagementPrev = prev30.reduce((sum, d) => sum + (d.likes || 0) + (d.comments || 0) + (d.saves || 0) + (d.shares || 0), 0);
+    const engagementGrowth = engagementPrev > 0 ? ((engagement30 - engagementPrev) / engagementPrev) * 100 : 0;
+
+    const profileViews30 = last30.reduce((sum, d) => sum + (d.profile_views || 0), 0);
+    const profileViewsPrev = prev30.reduce((sum, d) => sum + (d.profile_views || 0), 0);
+    const profileViewsGrowth = profileViewsPrev > 0 ? ((profileViews30 - profileViewsPrev) / profileViewsPrev) * 100 : 0;
+
+    return {
+      impressions30,
+      impressionsGrowth,
+      reach30,
+      reachGrowth,
+      engagement30,
+      engagementGrowth,
+      profileViews30,
+      profileViewsGrowth
+    };
+  }, [instagramDailyMetrics]);
 
   // Prepare 30-day growth chart
   const chartData = useMemo(() => {
@@ -155,7 +208,7 @@ const Overview = () => {
     label: "Duration",
     render: (value: number | null) => value ? `${value}ms` : "-"
   }];
-  if (ytLoading || agentsLoading) {
+  if (ytLoading || agentsLoading || igDataLoading || igRealtimeLoading) {
     return <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>;
@@ -168,37 +221,123 @@ const Overview = () => {
         </p>
       </div>
 
-      {/* KPI Tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="Total Views (30d)"
-          value={kpis.views30 >= 1000000 ? `${(kpis.views30 / 1000000).toFixed(1)}M` : kpis.views30.toLocaleString()}
-          growth={kpis.viewsGrowth}
-          icon={Eye}
-          iconColor="primary"
-        />
-        <StatCard
-          label="Watch Hours (30d)"
-          value={kpis.watchHours30.toFixed(0)}
-          growth={kpis.watchGrowth}
-          icon={TrendingUp}
-          iconColor="success"
-        />
-        <StatCard
-          label="Net Subscribers (30d)"
-          value={kpis.subscribers30 >= 0 ? `+${kpis.subscribers30.toLocaleString()}` : kpis.subscribers30.toLocaleString()}
-          growth={kpis.subsGrowth}
-          icon={Users}
-          iconColor="warning"
-        />
-        <StatCard
-          label="Revenue (30d)"
-          value={`$${kpis.revenue30.toFixed(2)}`}
-          growth={kpis.revenueGrowth}
-          icon={DollarSign}
-          iconColor="secondary"
-        />
+      {/* YouTube KPI Tiles */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Youtube className="h-5 w-5 text-red-500" />
+          <h2>YouTube Performance (30d)</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            label="Total Views"
+            value={youtubeKpis.views30 >= 1000000 ? `${(youtubeKpis.views30 / 1000000).toFixed(1)}M` : youtubeKpis.views30.toLocaleString()}
+            growth={youtubeKpis.viewsGrowth}
+            icon={Eye}
+            iconColor="primary"
+          />
+          <StatCard
+            label="Watch Hours"
+            value={youtubeKpis.watchHours30.toFixed(0)}
+            growth={youtubeKpis.watchGrowth}
+            icon={TrendingUp}
+            iconColor="success"
+          />
+          <StatCard
+            label="Net Subscribers"
+            value={youtubeKpis.subscribers30 >= 0 ? `+${youtubeKpis.subscribers30.toLocaleString()}` : youtubeKpis.subscribers30.toLocaleString()}
+            growth={youtubeKpis.subsGrowth}
+            icon={Users}
+            iconColor="warning"
+          />
+          <StatCard
+            label="Revenue"
+            value={`$${youtubeKpis.revenue30.toFixed(2)}`}
+            growth={youtubeKpis.revenueGrowth}
+            icon={DollarSign}
+            iconColor="secondary"
+          />
+        </div>
       </div>
+
+      {/* Instagram KPI Tiles */}
+      {instagramDailyMetrics.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Instagram className="h-5 w-5 text-pink-500" />
+            <h2>Instagram Performance (30d)</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard
+              label="Impressions"
+              value={instagramKpis.impressions30.toLocaleString()}
+              growth={instagramKpis.impressionsGrowth}
+              icon={Eye}
+              iconColor="primary"
+            />
+            <StatCard
+              label="Reach"
+              value={instagramKpis.reach30.toLocaleString()}
+              growth={instagramKpis.reachGrowth}
+              icon={Users}
+              iconColor="success"
+            />
+            <StatCard
+              label="Total Engagement"
+              value={instagramKpis.engagement30.toLocaleString()}
+              growth={instagramKpis.engagementGrowth}
+              icon={Heart}
+              iconColor="warning"
+            />
+            <StatCard
+              label="Profile Views"
+              value={instagramKpis.profileViews30.toLocaleString()}
+              growth={instagramKpis.profileViewsGrowth}
+              icon={Eye}
+              iconColor="secondary"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Instagram Real-time Snapshot */}
+      {instagramRealtimeMetrics && (
+        <Card className="p-6 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20">
+          <div className="flex items-center gap-2 mb-4">
+            <Instagram className="h-5 w-5 text-pink-500" />
+            <h3 className="font-semibold">Instagram Real-time</h3>
+            <span className="text-xs text-muted-foreground ml-auto">
+              Updated: {instagramRealtimeMetrics.lastCaptured ? format(new Date(instagramRealtimeMetrics.lastCaptured), "HH:mm") : 'Never'}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Followers</p>
+              <p className="text-xl font-bold">{instagramRealtimeMetrics.followerCount.toLocaleString()}</p>
+              {instagramRealtimeMetrics.todayFollowerGrowth !== 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {instagramRealtimeMetrics.todayFollowerGrowth > 0 ? '+' : ''}{instagramRealtimeMetrics.todayFollowerGrowth} today
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Following</p>
+              <p className="text-xl font-bold">{instagramRealtimeMetrics.followingCount.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Posts</p>
+              <p className="text-xl font-bold">{instagramRealtimeMetrics.mediaCount.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">48h Growth</p>
+              <p className="text-xl font-bold">{instagramRealtimeMetrics.last48HrFollowers > 0 ? '+' : ''}{instagramRealtimeMetrics.last48HrFollowers}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">48h Engagement</p>
+              <p className="text-xl font-bold">{instagramRealtimeMetrics.last48HrEngagement.toLocaleString()}</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* 30-Day Growth Chart */}
       <Card className="p-6">
