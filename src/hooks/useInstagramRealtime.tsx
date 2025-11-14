@@ -45,13 +45,20 @@ export const useInstagramRealtime = (userId: string | undefined) => {
 
         // Fetch Instagram real-time snapshots
         const { data: snapshots, error: snapshotsError } = await supabase
-          .from('instagram_account_intraday')
+          .from('instagram_account_intraday' as any)
           .select('*')
           .eq('user_id', userId)
           .order('captured_at', { ascending: false })
           .limit(1000); // Last ~20 hours at 30-min intervals
 
-        if (snapshotsError) throw snapshotsError;
+        if (snapshotsError) {
+          // Ignore error if table doesn't exist yet
+          if (snapshotsError.code === '42P01') {
+            setMetrics(null);
+            return;
+          }
+          throw snapshotsError;
+        }
 
         if (snapshots && snapshots.length > 0) {
           const now = new Date();
@@ -60,17 +67,17 @@ export const useInstagramRealtime = (userId: string | undefined) => {
           const last48Hr = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
           // Filter data for different time windows
-          const todayData = snapshots.filter(d => new Date(d.captured_at) >= todayStart);
-          const last60MinData = snapshots.filter(d => new Date(d.captured_at) >= last60Min);
-          const last48HrData = snapshots.filter(d => new Date(d.captured_at) >= last48Hr);
+          const todayData = snapshots.filter((d: any) => new Date(d.captured_at) >= todayStart);
+          const last60MinData = snapshots.filter((d: any) => new Date(d.captured_at) >= last60Min);
+          const last48HrData = snapshots.filter((d: any) => new Date(d.captured_at) >= last48Hr);
 
           // Latest snapshot
-          const latest = snapshots[0];
+          const latest: any = snapshots[0];
 
           // Compute deltas
           const computeDelta = (data: any[], field: string) => {
             if (data.length === 0) return 0;
-            const values = data.map(d => d[field] || 0);
+            const values = data.map((d: any) => d[field] || 0);
             return Math.max(...values) - Math.min(...values);
           };
 
@@ -89,13 +96,19 @@ export const useInstagramRealtime = (userId: string | undefined) => {
 
         // Fetch media snapshots for engagement metrics
         const { data: mediaSnapshots, error: mediaError } = await supabase
-          .from('instagram_media_intraday')
+          .from('instagram_media_intraday' as any)
           .select('*')
           .eq('user_id', userId)
           .order('captured_at', { ascending: false })
           .limit(2000);
 
-        if (mediaError) throw mediaError;
+        if (mediaError) {
+          // Ignore error if table doesn't exist yet
+          if (mediaError.code !== '42P01') {
+            throw mediaError;
+          }
+          return;
+        }
 
         if (mediaSnapshots && mediaSnapshots.length > 0) {
           const now = new Date();
@@ -103,7 +116,7 @@ export const useInstagramRealtime = (userId: string | undefined) => {
           const last48Hr = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
           // Group by media_id
-          const mediaGroups = mediaSnapshots.reduce((acc, snapshot) => {
+          const mediaGroups = mediaSnapshots.reduce((acc: any, snapshot: any) => {
             if (!acc[snapshot.media_id]) acc[snapshot.media_id] = [];
             acc[snapshot.media_id].push(snapshot);
             return acc;
@@ -114,13 +127,13 @@ export const useInstagramRealtime = (userId: string | undefined) => {
           let last48HrLikes = 0;
           let last48HrComments = 0;
 
-          Object.values(mediaGroups).forEach(mediaSnaps => {
-            const todayData = mediaSnaps.filter(d => new Date(d.captured_at) >= todayStart);
-            const last48HrData = mediaSnaps.filter(d => new Date(d.captured_at) >= last48Hr);
+          Object.values(mediaGroups).forEach((mediaSnaps: any[]) => {
+            const todayData = mediaSnaps.filter((d: any) => new Date(d.captured_at) >= todayStart);
+            const last48HrData = mediaSnaps.filter((d: any) => new Date(d.captured_at) >= last48Hr);
 
             const computeDelta = (data: any[], field: string) => {
               if (data.length === 0) return 0;
-              const values = data.map(d => d[field] || 0);
+              const values = data.map((d: any) => d[field] || 0);
               return Math.max(...values) - Math.min(...values);
             };
 

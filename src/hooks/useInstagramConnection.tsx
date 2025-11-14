@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSession } from '@supabase/auth-helpers-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface InstagramConnection {
   id: string;
@@ -14,13 +14,13 @@ interface InstagramConnection {
 }
 
 export const useInstagramConnection = () => {
-  const session = useSession();
+  const { user } = useAuth();
   const [connection, setConnection] = useState<InstagramConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session?.user?.id) {
+    if (!user?.id) {
       setLoading(false);
       return;
     }
@@ -31,12 +31,19 @@ export const useInstagramConnection = () => {
         setError(null);
 
         const { data, error: fetchError } = await supabase
-          .from('instagram_connection')
+          .from('instagram_connection' as any)
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .maybeSingle();
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          // Ignore error if table doesn't exist yet
+          if (fetchError.code === '42P01') {
+            setConnection(null);
+            return;
+          }
+          throw fetchError;
+        }
 
         setConnection(data);
       } catch (err: any) {
@@ -58,7 +65,7 @@ export const useInstagramConnection = () => {
           event: '*',
           schema: 'public',
           table: 'instagram_connection',
-          filter: `user_id=eq.${session.user.id}`,
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           fetchConnection();
@@ -69,16 +76,16 @@ export const useInstagramConnection = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session?.user?.id]);
+  }, [user?.id]);
 
   const disconnect = async () => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     try {
       const { error: deleteError } = await supabase
-        .from('instagram_connection')
+        .from('instagram_connection' as any)
         .delete()
-        .eq('user_id', session.user.id);
+        .eq('user_id', user.id);
 
       if (deleteError) throw deleteError;
 

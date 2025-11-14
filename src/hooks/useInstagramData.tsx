@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface InstagramDailyMetrics {
+export interface InstagramDailyMetrics {
   day: string;
   followerCount: number;
   followingCount: number;
@@ -18,7 +18,7 @@ interface InstagramDailyMetrics {
   shares: number;
 }
 
-interface InstagramMedia {
+export interface InstagramMedia {
   id: string;
   media_id: string;
   media_type: string;
@@ -29,7 +29,8 @@ interface InstagramMedia {
   timestamp: string;
   likeCount: number;
   commentCount: number;
-  saved: number;
+  savedCount: number;
+  shareCount: number;
   impressions: number;
   reach: number;
 }
@@ -61,18 +62,21 @@ export const useInstagramData = (userId: string | undefined, days: number = 30) 
 
         // Fetch daily account metrics
         const { data: dailyData, error: dailyError } = await supabase
-          .from('instagram_account_daily')
+          .from('instagram_account_daily' as any)
           .select('*')
           .eq('user_id', userId)
           .gte('day', startDateStr)
           .lte('day', endDateStr)
           .order('day', { ascending: true });
 
-        if (dailyError) throw dailyError;
-
-        if (dailyData) {
+        if (dailyError) {
+          // Ignore error if table doesn't exist yet
+          if (dailyError.code !== '42P01') {
+            throw dailyError;
+          }
+        } else if (dailyData) {
           setDailyMetrics(
-            dailyData.map(d => ({
+            dailyData.map((d: any) => ({
               day: d.day,
               followerCount: d.follower_count || 0,
               followingCount: d.following_count || 0,
@@ -93,13 +97,14 @@ export const useInstagramData = (userId: string | undefined, days: number = 30) 
 
         // Fetch recent media
         const { data: mediaData, error: mediaError } = await supabase
-          .from('instagram_media')
+          .from('instagram_media' as any)
           .select(`
             *,
             instagram_media_daily (
               like_count,
               comment_count,
               saved,
+              shares,
               impressions,
               reach
             )
@@ -108,9 +113,12 @@ export const useInstagramData = (userId: string | undefined, days: number = 30) 
           .order('timestamp', { ascending: false })
           .limit(50);
 
-        if (mediaError) throw mediaError;
-
-        if (mediaData) {
+        if (mediaError) {
+          // Ignore error if table doesn't exist yet
+          if (mediaError.code !== '42P01') {
+            throw mediaError;
+          }
+        } else if (mediaData) {
           setMedia(
             mediaData.map((m: any) => ({
               id: m.id,
@@ -124,7 +132,8 @@ export const useInstagramData = (userId: string | undefined, days: number = 30) 
               // Get latest metrics from daily insights
               likeCount: m.instagram_media_daily?.[0]?.like_count || 0,
               commentCount: m.instagram_media_daily?.[0]?.comment_count || 0,
-              saved: m.instagram_media_daily?.[0]?.saved || 0,
+              savedCount: m.instagram_media_daily?.[0]?.saved || 0,
+              shareCount: m.instagram_media_daily?.[0]?.shares || 0,
               impressions: m.instagram_media_daily?.[0]?.impressions || 0,
               reach: m.instagram_media_daily?.[0]?.reach || 0,
             }))
