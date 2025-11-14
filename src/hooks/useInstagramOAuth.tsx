@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSession } from '@supabase/auth-helpers-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface OAuthResponse {
   authUrl: string;
@@ -8,12 +8,12 @@ interface OAuthResponse {
 }
 
 export const useInstagramOAuth = () => {
-  const session = useSession();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const startOAuth = async () => {
-    if (!session) {
+    if (!user) {
       setError('You must be logged in to connect Instagram');
       return null;
     }
@@ -22,13 +22,8 @@ export const useInstagramOAuth = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error: functionError } = await supabase.functions.invoke<OAuthResponse>(
-        'instagram-oauth-start',
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
+      const { data, error: functionError} = await supabase.functions.invoke<OAuthResponse>(
+        'instagram-oauth-start'
       );
 
       if (functionError) throw functionError;
@@ -50,8 +45,8 @@ export const useInstagramOAuth = () => {
     }
   };
 
-  const handleCallback = async (code: string) => {
-    if (!session) {
+  const handleCallback = async (_code: string) => {
+    if (!user) {
       setError('You must be logged in to complete Instagram connection');
       return false;
     }

@@ -112,8 +112,8 @@ const Overview = () => {
     const engagementPrev = prev30.reduce((sum, d) => sum + (d.likes || 0) + (d.comments || 0) + (d.saves || 0) + (d.shares || 0), 0);
     const engagementGrowth = engagementPrev > 0 ? ((engagement30 - engagementPrev) / engagementPrev) * 100 : 0;
 
-    const profileViews30 = last30.reduce((sum, d) => sum + (d.profile_views || 0), 0);
-    const profileViewsPrev = prev30.reduce((sum, d) => sum + (d.profile_views || 0), 0);
+    const profileViews30 = last30.reduce((sum, d) => sum + (d.profileViews || 0), 0);
+    const profileViewsPrev = prev30.reduce((sum, d) => sum + (d.profileViews || 0), 0);
     const profileViewsGrowth = profileViewsPrev > 0 ? ((profileViews30 - profileViewsPrev) / profileViewsPrev) * 100 : 0;
 
     return {
