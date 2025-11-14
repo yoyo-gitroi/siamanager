@@ -13,7 +13,10 @@ import Engagement from "./pages/Engagement";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import YouTubeSetup from "./pages/YouTubeSetup";
+import YouTubeAnalytics from "./pages/YouTubeAnalytics";
 import YouTubeDataView from "./pages/YouTubeDataView";
+import InstagramSetup from "./pages/InstagramSetup";
+import InstagramAnalytics from "./pages/InstagramAnalytics";
 import OAuthCallback from "./pages/OAuthCallbackHandler";
 import OAuthRedirect from "./pages/OAuthRedirect";
 import NotFound from "./pages/NotFound";
@@ -35,6 +38,9 @@ const App = () => (
           <Route path="/" element={<Layout />}>
             <Route index element={<Overview />} />
             <Route path="analytics" element={<UnifiedAnalytics />} />
+            <Route path="youtube-analytics" element={<YouTubeAnalytics />} />
+            <Route path="instagram-setup" element={<InstagramSetup />} />
+            <Route path="instagram-analytics" element={<InstagramAnalytics />} />
             <Route path="create" element={<Content />} />
             <Route path="klipper-agent" element={<KlipperAgent />} />
             <Route path="shorts-logs" element={<ShortsLogs />} />
