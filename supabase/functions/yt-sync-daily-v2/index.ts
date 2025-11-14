@@ -2,116 +2,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
-
-interface TokenRecord {
-  access_token: string;
-  refresh_token: string | null;
-  token_expiry: string | null;
-  channel_id: string | null;
-}
-
-async function refreshToken(refreshToken: string): Promise<any> {
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: Deno.env.get("GOOGLE_CLIENT_ID") || "",
-      client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET") || "",
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to refresh token");
-  }
-
-  return await response.json();
-}
-
-async function getValidToken(supabase: any, userId: string): Promise<{ token: string; channelId: string }> {
-  const { data: tokenRecord, error } = await supabase
-    .from("youtube_connection")
-    .select("access_token, refresh_token, token_expiry, channel_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error || !tokenRecord) {
-    throw new Error("No YouTube connection found");
-  }
-
-  const token = tokenRecord as TokenRecord;
-
-  if (!token.channel_id) {
-    throw new Error("No channel selected");
-  }
-
-  let accessToken = token.access_token;
-
-  if (token.token_expiry) {
-    const expiryDate = new Date(token.token_expiry);
-    if (expiryDate <= new Date()) {
-      if (!token.refresh_token) {
-        throw new Error("No refresh token available");
-      }
-
-      const refreshed = await refreshToken(token.refresh_token);
-      const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000);
-
-      await supabase
-        .from("youtube_connection")
-        .update({
-          access_token: refreshed.access_token,
-          token_expiry: newExpiry.toISOString(),
-        })
-        .eq("user_id", userId);
-
-      accessToken = refreshed.access_token;
-    }
-  }
-
-  return { token: accessToken, channelId: token.channel_id };
-}
-
-/**
- * Generic YouTube Analytics reports.query wrapper.
- * Supports optional filters, sort, and maxResults so we can call Top Videos correctly.
- * Docs: https://developers.google.com/youtube/analytics/reference/reports/query
- */
-async function queryYouTubeAnalytics(opts: {
-  accessToken: string;
-  channelId: string;
-  startDate: string;
-  endDate: string;
-  metrics: string;
-  dimensions?: string;
-  filters?: string;
-  sort?: string;
-  maxResults?: number;
-}): Promise<any> {
-  const { accessToken, channelId, startDate, endDate, metrics, dimensions, filters, sort, maxResults } = opts;
-
-  const url = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
-  url.searchParams.set("ids", `channel==${channelId}`); // or channel==MINE (both valid if owned)
-  url.searchParams.set("startDate", startDate);
-  url.searchParams.set("endDate", endDate);
-  url.searchParams.set("metrics", metrics);
-  if (dimensions) url.searchParams.set("dimensions", dimensions);
-  if (filters) url.searchParams.set("filters", filters);
-  if (sort) url.searchParams.set("sort", sort);
-  if (typeof maxResults === "number") url.searchParams.set("maxResults", String(maxResults));
-
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Analytics API error: ${error}`);
-  }
-
-  return await response.json();
-}
+import { getValidToken } from "../_shared/youtube-auth.ts";
+import { queryYouTubeAnalytics, getDaysAgo } from "../_shared/youtube-api.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -151,9 +43,7 @@ Deno.serve(async (req) => {
     const { token: accessToken, channelId } = await getValidToken(supabase, userId);
 
     // Sync data from 3 days ago (accounts for YouTube Analytics API 2-3 day delay)
-    const syncDate = new Date();
-    syncDate.setDate(syncDate.getDate() - 3);
-    const dateStr = syncDate.toISOString().split("T")[0];
+    const dateStr = getDaysAgo(3);
 
     // --------------------------
     // Channel-level (time-based)
@@ -169,14 +59,14 @@ Deno.serve(async (req) => {
       dimensions: channelDims,
     };
 
-    const channelData = await queryYouTubeAnalytics({
-      accessToken,
+    const channelData = await queryYouTubeAnalytics(
       channelId,
-      startDate: dateStr,
-      endDate: dateStr,
-      metrics: channelMetrics,
-      dimensions: channelDims,
-    });
+      dateStr,
+      dateStr,
+      channelMetrics,
+      accessToken,
+      channelDims
+    );
 
     await supabase.from("youtube_raw_archive").insert({
       user_id: userId,
@@ -207,7 +97,6 @@ Deno.serve(async (req) => {
     // ------------------------------------
     // Video-level using "Top videos" report
     // dimensions=video, sorted by views, maxResults <= 200
-    // (No impressions/CTR here; those metrics are not supported in channel reports.)
     // ------------------------------------
     const videoMetricsBasic =
       "views,estimatedMinutesWatched,averageViewDuration,likes,comments,subscribersGained,subscribersLost";
@@ -222,16 +111,17 @@ Deno.serve(async (req) => {
       maxResults: 200,
     };
 
-    const videoData = await queryYouTubeAnalytics({
-      accessToken,
+    const videoData = await queryYouTubeAnalytics(
       channelId,
-      startDate: dateStr,
-      endDate: dateStr,
-      metrics: videoMetricsBasic,
-      dimensions: "video", // valid when using Top videos report
-      sort: "-views",
-      maxResults: 200,
-    });
+      dateStr,
+      dateStr,
+      videoMetricsBasic,
+      accessToken,
+      "video",
+      undefined,
+      "-views",
+      200
+    );
 
     await supabase.from("youtube_raw_archive").insert({
       user_id: userId,
@@ -252,7 +142,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           channel_id: channelId,
           video_id: videoId,
-          day: dateStr, // attach the day because Top videos doesn’t include a day column
+          day: dateStr, // attach the day because Top videos doesn't include a day column
           views: row[columnMap.get("views") as number] || 0,
           watch_time_seconds: (row[columnMap.get("estimatedMinutesWatched") as number] || 0) * 60,
           avg_view_duration_seconds: row[columnMap.get("averageViewDuration") as number] || 0,
