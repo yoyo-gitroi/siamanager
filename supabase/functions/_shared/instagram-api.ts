@@ -15,7 +15,40 @@ export interface InstagramConnection {
 }
 
 /**
- * Get Instagram connection for a user
+ * Refresh Instagram long-lived access token
+ *
+ * Long-lived tokens last 60 days. This function exchanges an existing
+ * long-lived token for a new one with extended expiry.
+ *
+ * @param accessToken - Current Instagram access token
+ * @returns Promise with new token and expiry
+ */
+export async function refreshInstagramToken(accessToken: string): Promise<{
+  access_token: string;
+  expires_in: number;
+}> {
+  const url = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+  url.searchParams.set('grant_type', 'ig_refresh_token');
+  url.searchParams.set('access_token', accessToken);
+
+  const response = await fetch(url.toString());
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to refresh Instagram token: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Get Instagram connection for a user with automatic token refresh
+ *
+ * This function:
+ * 1. Fetches the user's Instagram connection
+ * 2. Checks if token is expired or expiring soon (within 7 days)
+ * 3. Refreshes the token if needed
+ * 4. Updates database with new token
  *
  * @param supabase - Supabase client instance
  * @param userId - The user's ID
@@ -35,12 +68,40 @@ export async function getInstagramConnection(
     throw new Error('No Instagram connection found. Please connect your Instagram account first.');
   }
 
-  // Check if token is expired
+  // Check if token is expired or expiring soon (within 7 days)
   const expiry = data.token_expiry ? new Date(data.token_expiry) : null;
   const now = new Date();
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  if (expiry && expiry <= now) {
-    throw new Error('Instagram access token expired. Please reconnect your account.');
+  if (expiry && expiry <= sevenDaysFromNow) {
+    console.log(`Instagram token expiring soon for user ${userId}, refreshing...`);
+
+    try {
+      const refreshed = await refreshInstagramToken(data.access_token);
+      const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000);
+
+      // Update connection with new token
+      await supabase
+        .from('instagram_connection')
+        .update({
+          access_token: refreshed.access_token,
+          token_expiry: newExpiry.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      console.log(`Instagram token refreshed successfully, new expiry: ${newExpiry.toISOString()}`);
+
+      return {
+        instagram_user_id: data.instagram_user_id,
+        username: data.username,
+        access_token: refreshed.access_token,
+        token_expiry: newExpiry.toISOString(),
+      };
+    } catch (refreshError) {
+      console.error(`Failed to refresh Instagram token for user ${userId}:`, refreshError);
+      throw new Error('Instagram access token expired and refresh failed. Please reconnect your account.');
+    }
   }
 
   return data as InstagramConnection;

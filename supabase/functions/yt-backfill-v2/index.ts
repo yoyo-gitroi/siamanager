@@ -1,71 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
-
-interface TokenRecord {
-  access_token: string;
-  refresh_token: string | null;
-  token_expiry: string | null;
-  channel_id: string | null;
-}
-
-async function refreshToken(refreshToken: string): Promise<any> {
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: Deno.env.get("GOOGLE_CLIENT_ID") || "",
-      client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET") || "",
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  if (!response.ok) throw new Error("Failed to refresh token");
-  return await response.json();
-}
-
-async function getValidToken(supabase: any, userId: string): Promise<{ token: string; channelId: string }> {
-  const { data: tokenRecord, error } = await supabase
-    .from("youtube_connection")
-    .select("access_token, refresh_token, token_expiry, channel_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error || !tokenRecord) throw new Error("No YouTube connection found");
-
-  const token = tokenRecord as TokenRecord;
-  if (!token.channel_id) throw new Error("No channel selected. Please select a channel first.");
-
-  let accessToken = token.access_token;
-
-  if (token.token_expiry) {
-    const expiryDate = new Date(token.token_expiry);
-    if (expiryDate <= new Date()) {
-      if (!token.refresh_token) throw new Error("No refresh token available");
-      const refreshed = await refreshToken(token.refresh_token);
-      const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000);
-      await supabase
-        .from("youtube_connection")
-        .update({
-          access_token: refreshed.access_token,
-          token_expiry: newExpiry.toISOString(),
-        })
-        .eq("user_id", userId);
-      accessToken = refreshed.access_token;
-    }
-  }
-  return { token: accessToken, channelId: token.channel_id };
-}
+import { getValidToken } from "../_shared/youtube-auth.ts";
+import { queryYouTubeAnalytics, queryYouTubeDataAPI } from "../_shared/youtube-api.ts";
 
 // ------------ YouTube Data API helpers (to collect video IDs) ------------
 async function getUploadsPlaylistId(accessToken: string, channelId: string): Promise<string> {
-  const url = new URL("https://youtube.googleapis.com/youtube/v3/channels");
-  url.searchParams.set("part", "contentDetails");
-  url.searchParams.set("id", channelId);
+  const data = await queryYouTubeDataAPI(
+    "channels",
+    {
+      part: "contentDetails",
+      id: channelId,
+    },
+    accessToken
+  );
 
-  const resp = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!resp.ok) throw new Error(`Data API error (channels): ${await resp.text()}`);
-  const json = await resp.json();
-  const uploads = json?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  const uploads = data?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
   if (!uploads) throw new Error("Could not find uploads playlist for channel.");
   return uploads;
 }
@@ -76,21 +25,21 @@ async function listAllUploadVideoIds(accessToken: string, uploadsPlaylistId: str
   let safety = 0;
 
   while (safety++ < 1000) {
-    const url = new URL("https://youtube.googleapis.com/youtube/v3/playlistItems");
-    url.searchParams.set("part", "contentDetails");
-    url.searchParams.set("playlistId", uploadsPlaylistId);
-    url.searchParams.set("maxResults", "50");
-    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const params: Record<string, string> = {
+      part: "contentDetails",
+      playlistId: uploadsPlaylistId,
+      maxResults: "50",
+    };
+    if (pageToken) params.pageToken = pageToken;
 
-    const resp = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!resp.ok) throw new Error(`Data API error (playlistItems): ${await resp.text()}`);
-    const json = await resp.json();
-    for (const item of json.items ?? []) {
+    const data = await queryYouTubeDataAPI("playlistItems", params, accessToken);
+
+    for (const item of data.items ?? []) {
       const vid = item?.contentDetails?.videoId;
       if (vid) ids.push(vid);
     }
 
-    pageToken = json.nextPageToken || "";
+    pageToken = data.nextPageToken || "";
     if (!pageToken) break;
 
     // small delay to be gentle on quota
@@ -105,101 +54,46 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-// ------------ YouTube Analytics (reports) ------------
-async function queryYouTubeAnalytics(opts: {
-  accessToken: string;
-  channelId: string;
-  startDate: string;
-  endDate: string;
-  metrics: string;
-  dimensions?: string;
-  filters?: string;
-  sort?: string;
-  maxResults?: number;
-}): Promise<any> {
-  const { accessToken, channelId, startDate, endDate, metrics, dimensions, filters, sort, maxResults } = opts;
-
-  const url = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
-  url.searchParams.set("ids", `channel==${channelId}`); // token must own/access this channel
-  url.searchParams.set("startDate", startDate);
-  url.searchParams.set("endDate", endDate);
-  url.searchParams.set("metrics", metrics);
-  if (dimensions) url.searchParams.set("dimensions", dimensions);
-  if (filters) url.searchParams.set("filters", filters);
-  if (sort) url.searchParams.set("sort", sort);
-  if (typeof maxResults === "number") url.searchParams.set("maxResults", String(maxResults));
-
-  console.log(
-    `Querying YouTube Analytics: ${startDate} to ${endDate}, dims: ${dimensions || "(none)"}, metrics: ${metrics}, filters: ${filters || "(none)"}`,
-  );
-
-  let lastErrText = "";
-  for (let attempt = 1; attempt <= 6; attempt++) {
-    const jitter = Math.random() * 200;
-    const response = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
-
-    if (response.ok) return await response.json();
-
-    const errText = await response.text();
-    lastErrText = errText;
-    let retryable = false;
-    try {
-      const parsed = JSON.parse(errText);
-      const reason = parsed?.error?.errors?.[0]?.reason || parsed?.error?.status;
-      retryable = response.status >= 500 || reason === "internalError" || reason === "backendError";
-    } catch (_) {
-      retryable = response.status >= 500;
-    }
-
-    console.warn(`YouTube API error (attempt ${attempt}/6) for ${startDate}-${endDate}:`, errText);
-    if (!retryable || attempt === 6) throw new Error(`Analytics API error: ${errText}`);
-
-    await new Promise((r) => setTimeout(r, attempt * 700 + jitter));
-  }
-  throw new Error(`Analytics API error: ${lastErrText || "Unknown error"}`);
-}
-
 async function queryWithFallback(
-  accessToken: string,
   channelId: string,
   startDate: string,
   endDate: string,
   metrics: string,
+  accessToken: string,
   dimensions?: string,
   minimalMetrics?: string,
   filters?: string,
 ): Promise<{ data: any; wasFallback: boolean }> {
   try {
-    const data = await queryYouTubeAnalytics({
-      accessToken,
+    const data = await queryYouTubeAnalytics(
       channelId,
       startDate,
       endDate,
       metrics,
+      accessToken,
       dimensions,
       filters,
-    });
+    );
     return { data, wasFallback: false };
   } catch (err: any) {
     const errMsg = err.message || "";
     if (minimalMetrics && (errMsg.includes('"code": 500') || errMsg.includes("internalError"))) {
       console.warn(`Chunk ${startDate}-${endDate} failed with 500, trying minimal metrics...`);
-      const fallbackData = await queryYouTubeAnalytics({
-        accessToken,
+      const fallbackData = await queryYouTubeAnalytics(
         channelId,
         startDate,
         endDate,
-        metrics: minimalMetrics,
+        minimalMetrics,
+        accessToken,
         dimensions,
         filters,
-      });
+      );
       return { data: fallbackData, wasFallback: true };
     }
     throw err;
   }
 }
 
-// Month chunker remains as you had it
 function getMonthChunks(fromDate: string, toDate: string): Array<{ start: string; end: string }> {
   const chunks: Array<{ start: string; end: string }> = [];
   const start = new Date(fromDate);
@@ -243,7 +137,7 @@ Deno.serve(async (req) => {
     const minDate = "2015-01-01";
     const requestedFromDate = fromDate || minDate;
     const actualFromDate = requestedFromDate < minDate ? minDate : requestedFromDate;
-    
+
     // Stop backfill 3 days before today to account for YouTube Analytics API delay
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() - 3);
@@ -280,11 +174,11 @@ Deno.serve(async (req) => {
 
       try {
         const { data, wasFallback } = await queryWithFallback(
-          accessToken,
           channelId,
           chunk.start,
           chunk.end,
           channelMetrics,
+          accessToken,
           "day",
           minimalMetrics,
         );
@@ -331,8 +225,7 @@ Deno.serve(async (req) => {
     }
 
     // ======================================
-    // 2) Video-level daily data (correct!)
-    //    dimensions=day,video + filters=video==id1,id2,...
+    // 2) Video-level daily data
     // ======================================
     console.log("Collecting video IDs via Data API...");
     const uploadsPlaylistId = await getUploadsPlaylistId(accessToken, channelId);
@@ -358,11 +251,11 @@ Deno.serve(async (req) => {
 
         try {
           const { data } = await queryWithFallback(
-            accessToken,
             channelId,
             chunk.start,
             chunk.end,
             videoMetricsBasic,
+            accessToken,
             "day,video",
             minimalMetrics,
             filters,
