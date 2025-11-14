@@ -47,8 +47,8 @@ const InstagramAnalytics = () => {
     const calcMetrics = (data: typeof dailyMetrics) => {
       const impressions = data.reduce((sum, d) => sum + (d.impressions || 0), 0);
       const reach = data.reduce((sum, d) => sum + (d.reach || 0), 0);
-      const profileViews = data.reduce((sum, d) => sum + (d.profile_views || 0), 0);
-      const websiteClicks = data.reduce((sum, d) => sum + (d.website_clicks || 0), 0);
+      const profileViews = data.reduce((sum, d) => sum + (d.profileViews || 0), 0);
+      const websiteClicks = data.reduce((sum, d) => sum + (d.websiteClicks || 0), 0);
       const engagement = data.reduce((sum, d) => sum + (d.likes || 0) + (d.comments || 0) + (d.saves || 0) + (d.shares || 0), 0);
       return { impressions, reach, profileViews, websiteClicks, engagement };
     };
@@ -76,7 +76,7 @@ const InstagramAnalytics = () => {
     if (!media.length) return [];
 
     return media.map(m => {
-      const engagement = (m.like_count || 0) + (m.comment_count || 0) + (m.saved_count || 0) + (m.share_count || 0);
+      const engagement = (m.likeCount || 0) + (m.commentCount || 0) + (m.saved || 0);
       const engagementRate = m.impressions > 0 ? (engagement / m.impressions) * 100 : 0;
 
       return {
@@ -86,10 +86,10 @@ const InstagramAnalytics = () => {
         timestamp: m.timestamp,
         impressions: m.impressions || 0,
         reach: m.reach || 0,
-        likes: m.like_count || 0,
-        comments: m.comment_count || 0,
-        saves: m.saved_count || 0,
-        shares: m.share_count || 0,
+        likes: m.likeCount || 0,
+        comments: m.commentCount || 0,
+        saves: m.saved || 0,
+        shares: 0,
         engagement,
         engagementRate: engagementRate.toFixed(2),
         permalink: m.permalink,
@@ -108,9 +108,9 @@ const InstagramAnalytics = () => {
         date: format(new Date(d.day), "MMM dd"),
         impressions: d.impressions || 0,
         reach: d.reach || 0,
-        profileViews: d.profile_views || 0,
+        profileViews: d.profileViews || 0,
         engagement: (d.likes || 0) + (d.comments || 0) + (d.saves || 0) + (d.shares || 0),
-        websiteClicks: d.website_clicks || 0,
+        websiteClicks: d.websiteClicks || 0,
       }));
 
     return last30Days;
