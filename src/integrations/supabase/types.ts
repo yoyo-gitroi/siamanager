@@ -979,6 +979,39 @@ export type Database = {
         }
         Relationships: []
       }
+      yt_processed_insights: {
+        Row: {
+          channel_id: string
+          id: string
+          insights_data: Json
+          period_end: string
+          period_start: string
+          processed_at: string | null
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          channel_id: string
+          id?: string
+          insights_data: Json
+          period_end: string
+          period_start: string
+          processed_at?: string | null
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          channel_id?: string
+          id?: string
+          insights_data?: Json
+          period_end?: string
+          period_start?: string
+          processed_at?: string | null
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: []
+      }
       yt_revenue_daily: {
         Row: {
           ad_impressions: number | null
