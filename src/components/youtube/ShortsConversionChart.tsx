@@ -18,10 +18,19 @@ interface ShortsConversionChartProps {
 }
 
 export const ShortsConversionChart = ({ data }: ShortsConversionChartProps) => {
-  const totalViewers = data.shortsOnlyViewers + data.crossFormatViewers + data.longFormOnlyViewers;
-  const shortsPercent = ((data.shortsOnlyViewers / totalViewers) * 100).toFixed(0);
-  const crossPercent = ((data.crossFormatViewers / totalViewers) * 100).toFixed(0);
-  const longPercent = ((data.longFormOnlyViewers / totalViewers) * 100).toFixed(0);
+  // Safely handle undefined values
+  const shortsOnlyViewers = data.shortsOnlyViewers || 0;
+  const crossFormatViewers = data.crossFormatViewers || 0;
+  const longFormOnlyViewers = data.longFormOnlyViewers || 0;
+  const totalViewers = shortsOnlyViewers + crossFormatViewers + longFormOnlyViewers;
+  
+  const shortsPercent = totalViewers > 0 ? ((shortsOnlyViewers / totalViewers) * 100).toFixed(0) : '0';
+  const crossPercent = totalViewers > 0 ? ((crossFormatViewers / totalViewers) * 100).toFixed(0) : '0';
+  const longPercent = totalViewers > 0 ? ((longFormOnlyViewers / totalViewers) * 100).toFixed(0) : '0';
+  
+  const conversionRate = data.conversionRate || 0;
+  const swipeAwayRate = data.swipeAwayRate || 0;
+  const monthlyGain = data.revenueImpact?.monthlyGain || 0;
 
   return (
     <Card className="p-6 bg-gradient-to-br from-background to-muted/20 border-none shadow-sm">
@@ -67,21 +76,21 @@ export const ShortsConversionChart = ({ data }: ShortsConversionChartProps) => {
             <div className="w-3 h-3 rounded-full bg-destructive/60 mt-1" />
             <div>
               <p className="text-sm font-semibold text-foreground">Shorts Only</p>
-              <p className="text-xs text-muted-foreground">{(data.shortsOnlyViewers / 1000).toFixed(0)}K viewers</p>
+              <p className="text-xs text-muted-foreground">{(shortsOnlyViewers / 1000).toFixed(0)}K viewers</p>
             </div>
           </div>
           <div className="flex items-start gap-2">
             <div className="w-3 h-3 rounded-full bg-primary/60 mt-1" />
             <div>
               <p className="text-sm font-semibold text-foreground">Watch Both</p>
-              <p className="text-xs text-muted-foreground">{(data.crossFormatViewers / 1000).toFixed(0)}K viewers</p>
+              <p className="text-xs text-muted-foreground">{(crossFormatViewers / 1000).toFixed(0)}K viewers</p>
             </div>
           </div>
           <div className="flex items-start gap-2">
             <div className="w-3 h-3 rounded-full bg-success/60 mt-1" />
             <div>
               <p className="text-sm font-semibold text-foreground">Videos Only</p>
-              <p className="text-xs text-muted-foreground">{(data.longFormOnlyViewers / 1000).toFixed(0)}K viewers</p>
+              <p className="text-xs text-muted-foreground">{(longFormOnlyViewers / 1000).toFixed(0)}K viewers</p>
             </div>
           </div>
         </div>
@@ -91,9 +100,9 @@ export const ShortsConversionChart = ({ data }: ShortsConversionChartProps) => {
       <div className="bg-destructive/10 rounded-lg p-4 mb-6 border border-destructive/20">
         <h4 className="text-sm font-semibold text-destructive mb-3">⚠️ The Problem</h4>
         <div className="space-y-2 text-sm text-foreground">
-          <p>• Only <span className="font-bold">{data.conversionRate.toFixed(1)}%</span> become "regular viewers"</p>
-          <p>• Average watch time: <span className="font-bold">{data.avgWatchTime}</span> (need 0:35+ for retention)</p>
-          <p>• <span className="font-bold">{data.swipeAwayRate.toFixed(1)}%</span> swipe away before hook completes</p>
+          <p>• Only <span className="font-bold">{conversionRate.toFixed(1)}%</span> become "regular viewers"</p>
+          <p>• Average watch time: <span className="font-bold">{data.avgWatchTime || '0:22'}</span> (need 0:35+ for retention)</p>
+          <p>• <span className="font-bold">{swipeAwayRate.toFixed(1)}%</span> swipe away before hook completes</p>
         </div>
       </div>
 
@@ -108,15 +117,15 @@ export const ShortsConversionChart = ({ data }: ShortsConversionChartProps) => {
           <div className="grid grid-cols-3 gap-3 mt-3">
             <div className="bg-background/50 rounded p-2 text-center">
               <p className="text-xs text-muted-foreground">Engaged Viewers</p>
-              <p className="text-lg font-bold text-primary">+{(data.shortsOnlyViewers * 0.05 / 1000).toFixed(1)}K</p>
+              <p className="text-lg font-bold text-primary">+{(shortsOnlyViewers * 0.05 / 1000).toFixed(1)}K</p>
             </div>
             <div className="bg-background/50 rounded p-2 text-center">
               <p className="text-xs text-muted-foreground">Monthly Revenue</p>
-              <p className="text-lg font-bold text-success">+₹{(data.revenueImpact.monthlyGain / 1000).toFixed(0)}K</p>
+              <p className="text-lg font-bold text-success">+₹{(monthlyGain / 1000).toFixed(0)}K</p>
             </div>
             <div className="bg-background/50 rounded p-2 text-center">
               <p className="text-xs text-muted-foreground">Real Subscribers</p>
-              <p className="text-lg font-bold text-primary">+{(data.shortsOnlyViewers * 0.05 * 0.13 / 1000).toFixed(1)}K</p>
+              <p className="text-lg font-bold text-primary">+{(shortsOnlyViewers * 0.05 * 0.13 / 1000).toFixed(1)}K</p>
             </div>
           </div>
         </div>

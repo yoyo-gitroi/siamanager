@@ -19,7 +19,13 @@ interface TopVideoCardProps {
 }
 
 export const TopVideoCard = ({ video, rank, channelAvgRetention = 45 }: TopVideoCardProps) => {
-  const isAboveAvg = video.hookRetention > channelAvgRetention;
+  const isAboveAvg = (video.hookRetention || 0) > channelAvgRetention;
+  
+  // Safely format numbers with fallbacks
+  const views = video.views || 0;
+  const hookRetention = video.hookRetention || 0;
+  const trafficPercent = video.trafficPercent || 0;
+  const likeRatio = video.likeRatio || 0;
 
   return (
     <Card className="p-5 bg-gradient-to-br from-background to-muted/10 border-none shadow-sm hover:shadow-md transition-shadow">
@@ -38,7 +44,7 @@ export const TopVideoCard = ({ video, rank, channelAvgRetention = 45 }: TopVideo
           <div className="flex items-center gap-4 mb-3 text-sm">
             <div className="flex items-center gap-1 text-muted-foreground">
               <Eye className="h-4 w-4" />
-              <span className="font-semibold">{(video.views / 1000).toFixed(0)}K views</span>
+              <span className="font-semibold">{(views / 1000).toFixed(0)}K views</span>
             </div>
             <div className="flex items-center gap-1">
               {isAboveAvg ? (
@@ -47,7 +53,7 @@ export const TopVideoCard = ({ video, rank, channelAvgRetention = 45 }: TopVideo
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               )}
               <span className={isAboveAvg ? "text-success font-semibold" : "text-muted-foreground"}>
-                {video.hookRetention.toFixed(1)}% retention
+                {hookRetention.toFixed(1)}% retention
               </span>
             </div>
           </div>
@@ -57,7 +63,7 @@ export const TopVideoCard = ({ video, rank, channelAvgRetention = 45 }: TopVideo
             <div className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
               <p className="text-sm text-foreground">
-                <span className="font-semibold">Hook worked:</span> {video.hookRetention.toFixed(1)}% retention 
+                <span className="font-semibold">Hook worked:</span> {hookRetention.toFixed(1)}% retention 
                 {isAboveAvg && <span className="text-success"> (vs {channelAvgRetention}% channel avg)</span>}
               </p>
             </div>
@@ -81,16 +87,16 @@ export const TopVideoCard = ({ video, rank, channelAvgRetention = 45 }: TopVideo
             <div className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
               <p className="text-sm text-foreground">
-                <span className="font-semibold">Traffic source:</span> {video.trafficSource} 
-                <span className="text-muted-foreground"> ({video.trafficPercent.toFixed(0)}% of traffic)</span>
+                <span className="font-semibold">Traffic source:</span> {video.trafficSource || 'Unknown'} 
+                <span className="text-muted-foreground"> ({trafficPercent.toFixed(0)}% of traffic)</span>
               </p>
             </div>
 
-            {video.likeRatio > 0 && (
+            {likeRatio > 0 && (
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-foreground">
-                  <span className="font-semibold">{(video.likeRatio * 100).toFixed(1)}% like ratio</span>
+                  <span className="font-semibold">{(likeRatio * 100).toFixed(1)}% like ratio</span>
                   <span className="text-muted-foreground"> (extremely positive sentiment)</span>
                 </p>
               </div>
