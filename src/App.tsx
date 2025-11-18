@@ -17,6 +17,7 @@ import OAuthRedirect from "./pages/OAuthRedirect";
 import NotFound from "./pages/NotFound";
 import KlipperAgent from "./pages/KlipperAgent";
 import ShortsLogs from "./pages/ShortsLogs";
+import YouTubeStudioAnalytics from "./pages/YouTubeStudioAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="create" element={<Content />} />
             <Route path="klipper-agent" element={<KlipperAgent />} />
             <Route path="shorts-logs" element={<ShortsLogs />} />
+            <Route path="youtube-studio" element={<YouTubeStudioAnalytics />} />
             <Route path="post" element={<Publishing />} />
             <Route path="engage" element={<Engagement />} />
             <Route path="settings" element={<Settings />} />
