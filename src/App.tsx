@@ -5,18 +5,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Overview from "./pages/Overview";
-import UnifiedAnalytics from "./pages/UnifiedAnalytics";
-import GrowthInsights from "./pages/GrowthInsights";
+import Analytics from "./pages/Analytics";
+import Insights from "./pages/Insights";
 import Content from "./pages/Content";
 import Publishing from "./pages/Publishing";
 import Engagement from "./pages/Engagement";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
-import YouTubeSetup from "./pages/YouTubeSetup";
-import YouTubeAnalytics from "./pages/YouTubeAnalytics";
-import YouTubeDataView from "./pages/YouTubeDataView";
-import InstagramSetup from "./pages/InstagramSetup";
-import InstagramAnalytics from "./pages/InstagramAnalytics";
 import OAuthCallback from "./pages/OAuthCallbackHandler";
 import OAuthRedirect from "./pages/OAuthRedirect";
 import NotFound from "./pages/NotFound";
@@ -37,14 +32,11 @@ const App = () => (
           <Route path="/oauth-redirect" element={<OAuthRedirect />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Overview />} />
-            <Route path="analytics" element={<UnifiedAnalytics />} />
-            <Route path="youtube-analytics" element={<YouTubeAnalytics />} />
-            <Route path="instagram-setup" element={<InstagramSetup />} />
-            <Route path="instagram-analytics" element={<InstagramAnalytics />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="insights" element={<Insights />} />
             <Route path="create" element={<Content />} />
             <Route path="klipper-agent" element={<KlipperAgent />} />
             <Route path="shorts-logs" element={<ShortsLogs />} />
-            <Route path="youtube-data" element={<YouTubeDataView />} />
             <Route path="post" element={<Publishing />} />
             <Route path="engage" element={<Engagement />} />
             <Route path="settings" element={<Settings />} />

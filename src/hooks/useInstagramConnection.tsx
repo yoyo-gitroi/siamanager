@@ -45,7 +45,7 @@ export const useInstagramConnection = () => {
           throw fetchError;
         }
 
-        setConnection(data);
+        setConnection(data as InstagramConnection | null);
       } catch (err: any) {
         console.error('Error fetching Instagram connection:', err);
         setError(err.message);

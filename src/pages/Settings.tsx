@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle, Upload, FileText, Youtube, Loader2, PlayCircle, Database, ExternalLink, Copy, LogOut } from "lucide-react";
+import { CheckCircle, Upload, FileText, Youtube, Loader2, PlayCircle, Database, ExternalLink, Copy, LogOut, Instagram, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface YouTubeChannel {
@@ -533,6 +533,7 @@ const Settings = () => {
       <Tabs defaultValue="youtube" className="space-y-6">
         <TabsList>
           <TabsTrigger value="youtube">YouTube Setup</TabsTrigger>
+          <TabsTrigger value="instagram">Instagram Setup</TabsTrigger>
           <TabsTrigger value="data-import">Data Import</TabsTrigger>
           <TabsTrigger value="runs">Runs & Logs</TabsTrigger>
         </TabsList>
@@ -878,6 +879,59 @@ const Settings = () => {
                   After completing the setup above, consider setting up automated daily syncs using Supabase Edge Functions cron jobs. 
                   The sync will fetch yesterday's data automatically every morning.
                 </p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="instagram" className="space-y-6">
+          <Card className="p-8 border-none shadow-sm">
+            <div className="mb-6">
+              <h2 className="mb-2 flex items-center gap-2">
+                <Instagram className="h-6 w-6" />
+                Instagram Integration
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Connect your Instagram Business account to track analytics
+              </p>
+            </div>
+
+            {/* Requirements Alert */}
+            <div className="mb-6 p-4 border border-amber-500/20 bg-amber-500/10 rounded-lg">
+              <h3 className="font-semibold mb-2 flex items-center gap-2 text-amber-600">
+                <AlertCircle className="h-5 w-5" />
+                Requirements
+              </h3>
+              <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                <li>An <strong>Instagram Business</strong> or <strong>Creator</strong> account</li>
+                <li>Instagram account connected to a <strong>Facebook Page</strong></li>
+                <li>Admin access to the Facebook Page</li>
+              </ul>
+              <p className="text-sm text-muted-foreground mt-3">
+                Personal Instagram accounts are not supported by the Instagram API.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Instagram integration is currently in setup. Please visit the{" "}
+                <a href="/analytics" className="text-primary underline">
+                  Analytics Dashboard
+                </a>{" "}
+                to see your Instagram data once connected.
+              </p>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">
+                  <Instagram className="h-4 w-4 mr-2" />
+                  Learn More
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://developers.facebook.com/docs/instagram-api" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    API Documentation
+                  </a>
+                </Button>
               </div>
             </div>
           </Card>

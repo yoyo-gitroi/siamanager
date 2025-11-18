@@ -127,7 +127,7 @@ export const useInstagramRealtime = (userId: string | undefined) => {
           let last48HrLikes = 0;
           let last48HrComments = 0;
 
-          Object.values(mediaGroups).forEach((mediaSnaps: any[]) => {
+          (Object.values(mediaGroups) as any[][]).forEach((mediaSnaps: any[]) => {
             const todayData = mediaSnaps.filter((d: any) => new Date(d.captured_at) >= todayStart);
             const last48HrData = mediaSnaps.filter((d: any) => new Date(d.captured_at) >= last48Hr);
 
