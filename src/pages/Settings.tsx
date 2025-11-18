@@ -536,6 +536,7 @@ const Settings = () => {
           <TabsTrigger value="instagram">Instagram Setup</TabsTrigger>
           <TabsTrigger value="data-import">Data Import</TabsTrigger>
           <TabsTrigger value="runs">Runs & Logs</TabsTrigger>
+          <TabsTrigger value="api-config">API Configuration</TabsTrigger>
         </TabsList>
 
 
@@ -976,6 +977,91 @@ const Settings = () => {
                 <p className="text-muted-foreground">
                   Agent run history will be displayed here
                 </p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="api-config" className="space-y-6">
+          <Card className="p-8 border-none shadow-sm">
+            <div className="mb-6">
+              <h2 className="mb-2">API Configuration</h2>
+              <p className="text-sm text-muted-foreground">
+                Use these credentials to configure external integrations like the YouTube Studio browser extension
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Supabase URL</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 px-3 py-2 bg-muted rounded text-sm font-mono break-all">
+                      {import.meta.env.VITE_SUPABASE_URL}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(import.meta.env.VITE_SUPABASE_URL);
+                        toast.success('Supabase URL copied to clipboard');
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">User ID</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 px-3 py-2 bg-muted rounded text-sm font-mono break-all">
+                      {user?.id || 'Not logged in'}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!user?.id}
+                      onClick={() => {
+                        if (user?.id) {
+                          navigator.clipboard.writeText(user.id);
+                          toast.success('User ID copied to clipboard');
+                        }
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">API Key (Optional)</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 px-3 py-2 bg-muted rounded text-sm font-mono break-all">
+                      {import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+                        toast.success('API Key copied to clipboard');
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                <h3 className="font-medium mb-2 text-sm">YouTube Studio Extension Setup</h3>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  <li>Install the YouTube Studio browser extension</li>
+                  <li>Open the extension popup and click "Settings"</li>
+                  <li>Copy and paste the values above into the corresponding fields</li>
+                  <li>Click "Save Configuration"</li>
+                </ol>
               </div>
             </div>
           </Card>

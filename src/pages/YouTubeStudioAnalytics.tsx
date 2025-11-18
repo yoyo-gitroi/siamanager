@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,12 +48,10 @@ export default function YouTubeStudioAnalytics() {
   const [insights, setInsights] = useState<StudioInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
-  const [latestVideos, setLatestVideos] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       loadInsights();
-      loadLatestVideos();
     }
   }, [user, timeRange]);
 
@@ -78,22 +76,6 @@ export default function YouTubeStudioAnalytics() {
     }
   };
 
-  const loadLatestVideos = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('youtube_studio_latest_videos')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('captured_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-
-      setLatestVideos(data || []);
-    } catch (error) {
-      console.error('Error loading latest videos:', error);
-    }
-  };
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -238,7 +220,6 @@ export default function YouTubeStudioAnalytics() {
         <TabsList>
           <TabsTrigger value="videos">Video Trends</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>
-          <TabsTrigger value="latest">Latest Videos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="videos" className="space-y-4">
@@ -308,34 +289,6 @@ export default function YouTubeStudioAnalytics() {
                     <p className="text-xs text-muted-foreground mt-2">
                       {comment.likes_count} likes · {comment.posted_date}
                     </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="latest" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Latest Video Snapshots</CardTitle>
-              <CardDescription>Most recent video data captured from YouTube Studio</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {latestVideos.map((video, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{video.title}</h4>
-                      <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                        <span>{formatNumber(video.views)} views</span>
-                        <span>{video.likes_count} likes</span>
-                        <span>{video.comments_count} comments</span>
-                      </div>
-                    </div>
-                    <Badge variant={video.visibility === 'Public' ? 'default' : 'secondary'}>
-                      {video.visibility}
-                    </Badge>
                   </div>
                 ))}
               </div>
