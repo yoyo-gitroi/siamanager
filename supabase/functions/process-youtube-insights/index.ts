@@ -357,26 +357,58 @@ Use REAL numbers. Show calculations. Be specific.`;
 
     const data = await response.json();
     console.log('LLM response received:', { status: response.status });
-    
+
+    // Helper function to clean and parse JSON
+    function parseJSONSafely(jsonString: string): any {
+      try {
+        // First attempt: direct parse
+        return JSON.parse(jsonString);
+      } catch (e) {
+        console.log('Direct JSON parse failed, attempting cleanup...');
+        try {
+          // Clean up common JSON issues
+          let cleaned = jsonString
+            .replace(/[ -]+/g, '') // Remove control characters
+            .replace(/,\s*([\]}])/g, '$1') // Remove trailing commas
+            .replace(/\n/g, ' ') // Replace newlines with spaces
+            .replace(/\r/g, '') // Remove carriage returns
+            .trim();
+
+          // Try parsing cleaned version
+          return JSON.parse(cleaned);
+        } catch (e2) {
+          console.error('JSON cleanup failed:', e2);
+          // Try extracting JSON from code blocks
+          const jsonMatch = jsonString.match(/```json\n([\s\S]*?)\n```/) || jsonString.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            return JSON.parse(jsonMatch[1] || jsonMatch[0]);
+          }
+          throw new Error(`Failed to parse JSON: ${e2 instanceof Error ? e2.message : 'Unknown error'}`);
+        }
+      }
+    }
+
     // Extract insights from tool call
     let insights;
     const toolCalls = data.choices?.[0]?.message?.tool_calls;
     if (toolCalls && toolCalls.length > 0) {
       const functionArgs = toolCalls[0].function.arguments;
-      insights = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs;
-      console.log('Insights extracted from tool call');
+      try {
+        insights = typeof functionArgs === 'string' ? parseJSONSafely(functionArgs) : functionArgs;
+        console.log('Insights extracted from tool call');
+      } catch (parseError) {
+        console.error('Tool call parsing error:', parseError);
+        console.error('Raw function args:', functionArgs);
+        throw new Error(`Failed to parse JSON from model response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
     } else {
       // Fallback to content parsing
       const insightsText = data.choices?.[0]?.message?.content || "{}";
       try {
-        insights = JSON.parse(insightsText);
+        insights = parseJSONSafely(insightsText);
       } catch (e) {
-        const jsonMatch = insightsText.match(/```json\n([\s\S]*?)\n```/);
-        if (jsonMatch) {
-          insights = JSON.parse(jsonMatch[1]);
-        } else {
-          insights = { error: "Failed to parse AI response", raw: insightsText };
-        }
+        console.error('Content parsing error:', e);
+        insights = { error: "Failed to parse AI response", raw: insightsText.substring(0, 500) };
       }
     }
 
